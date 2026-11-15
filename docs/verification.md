@@ -7,7 +7,7 @@ the dev Convex deployment, and the production Convex deployment.
 
 | Check | Command | Result |
 |---|---|---|
-| Web unit tests | `pnpm --dir apps/web test` | 11 passed |
+| Web unit tests | `pnpm --dir apps/web test` | 12 passed |
 | Stats unit + contract tests | `cd apps/stats-engine && uv run pytest -q` | 23 passed |
 | TypeScript | `pnpm exec tsc -p apps/web/tsconfig.json --noEmit` | clean |
 | Production build | `VITE_CONVEX_URL=... VITE_BASE_PATH=/holmes/ pnpm build` | clean; `dist/apps/web` |
