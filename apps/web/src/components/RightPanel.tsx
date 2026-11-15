@@ -214,13 +214,13 @@ function CityFileView({
                 <div className="text-right font-mono text-[9px] text-[var(--accent)]">
                   {record?.slope === null || record?.slope === undefined ? "—" : signed(record.slope, digitsFor(variable))}
                 </div>
-                <Sparkline values={spark} color="auto" />
+                <Sparkline values={spark} color="auto" width={42} height={16} />
                 <ScopeTag level={record?.evidenceVar ?? "insufficient"} />
               </div>
             );
           })}
         </div>
-        <div className="mt-1 font-mono text-[8px] text-[var(--text-muted)]">
+        <div className="mt-1 pl-1.5 font-mono text-[8px] text-[var(--text-muted)]">
           p = raw · q = FDR-adjusted · outline uses q
         </div>
       </div>
@@ -289,7 +289,7 @@ export function RightPanel({
     { id: "fire", label: "FIRE WATCH" },
   ];
   return (
-    <aside className="right-panel glass-panel">
+    <aside className="right-panel glass-panel" id={view.panelTab === "file" ? "tour-city-file" : "tour-fire-watch"}>
       <div className="panel-tabs">
         {tabs.map((tab) => (
           <button
@@ -316,7 +316,6 @@ export function RightPanel({
                   {city.lat.toFixed(2)}°, {city.lon.toFixed(2)}° · trend cell MERRA-2 ≈ 55 × 69 km
                 </div>
               </div>
-              <button className="btn-hud btn-hud--ghost !p-1" onClick={() => onSetView({ cityId: null })} aria-label="Close city file"><X size={12} /></button>
             </div>
             <CityFileView data={data} view={view} city={city} onSetView={onSetView} onShare={onShare} />
           </>

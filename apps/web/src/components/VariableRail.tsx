@@ -1,4 +1,5 @@
-import { Check, SlidersHorizontal, Layers, Flame, LayoutGrid } from "lucide-react";
+import type { ReactNode } from "react";
+import { Check, SlidersHorizontal, Layers, Flame, MapPin, Moon, LayoutGrid, Tag as TagIcon } from "lucide-react";
 import type { CoreData } from "@/lib/api";
 import type { City, Lens, Season, ViewState, WindowId } from "@/lib/types";
 import { Legend } from "./Legend";
@@ -18,6 +19,34 @@ const SEASONS: { id: Season; label: string }[] = [
   { id: "JJA", label: "JJA" },
   { id: "SON", label: "SON" },
 ];
+
+function LayerToggle({
+  icon,
+  label,
+  checked,
+  onChange,
+}: {
+  icon: ReactNode;
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      className="layer-row"
+      onClick={onChange}
+    >
+      <span className="layer-row__label">
+        <span className="layer-row__icon">{icon}</span>
+        {label}
+      </span>
+      <span className={`switch ${checked ? "switch--on" : ""}`} aria-hidden="true" />
+    </button>
+  );
+}
 
 export function VariableRail({
   data,
@@ -85,7 +114,7 @@ export function VariableRail({
           </div>
         </section>
 
-        <section className="rail-section">
+        <section className="rail-section" id="tour-lens">
           <div className="rail-heading">
             <div className="hud-label">LENS</div>
             <div className="font-mono text-[8px] text-[var(--text-muted)]">ONE AT A TIME</div>
@@ -105,7 +134,7 @@ export function VariableRail({
           </div>
         </section>
 
-        <section className="rail-section">
+        <section className="rail-section" id="tour-window">
           <div className="rail-heading">
             <div className="hud-label">WINDOW</div>
             <div className="font-mono text-[8px] text-[var(--accent)]">{window.short}</div>
@@ -125,7 +154,7 @@ export function VariableRail({
           <div className="font-mono text-[8px] text-[var(--text-muted)]">{window.start}–{window.end} · slope per decade</div>
         </section>
 
-        <section className="rail-section">
+        <section className="rail-section" id="tour-season">
           <div className="rail-heading">
             <div className="hud-label">SEASON</div>
             <div className="font-mono text-[8px] text-[var(--text-muted)]">{view.season === "all" ? "12 MONTHS" : view.season}</div>
@@ -147,7 +176,7 @@ export function VariableRail({
       </div>
 
       <div className="rail-catalog">
-        <section className="rail-section">
+        <section className="rail-section" id="tour-variables">
           <div className="rail-heading">
             <div className="hud-label">VARIABLES</div>
             <div className="flex gap-2">
@@ -206,48 +235,50 @@ export function VariableRail({
 
         <div className="divider" />
 
-        <section className="rail-section">
+        <section className="rail-section" id="tour-layers">
           <div className="hud-label flex items-center gap-1.5"><Layers size={10} /> LAYERS</div>
-          <label className="flex items-center justify-between py-0.5 text-[10.5px] text-[var(--text-dim)]">
-            <span>City areas</span>
-            <span className="tag tag--ok">ON</span>
-          </label>
-          <button
-            className="flex w-full items-center justify-between py-0.5 text-left text-[10.5px] text-[var(--text-dim)]"
-            onClick={() => onSetView({ fireOn: !view.fireOn })}
-          >
-            <span className="flex items-center gap-1.5"><Flame size={11} className="text-[var(--ember)]" /> Fire watch</span>
-            <span className={`tag ${view.fireOn ? "tag--fire" : "tag--muted"}`}>{view.fireOn ? "ON" : "OFF"}</span>
-          </button>
-          <button
-            className="flex w-full items-center justify-between py-0.5 text-left text-[10.5px] text-[var(--text-dim)]"
-            onClick={() => onSetView({ gridOn: !view.gridOn })}
-          >
-            <span className="flex items-center gap-1.5"><LayoutGrid size={11} className="text-[var(--cyan)]" /> MERRA cell grid</span>
-            <span className={`tag ${view.gridOn ? "tag--ok" : "tag--muted"}`}>{view.gridOn ? "ON" : "OFF"}</span>
-          </button>
-          <button
-            className="flex w-full items-center justify-between py-0.5 text-left text-[10.5px] text-[var(--text-dim)]"
-            onClick={() => onSetView({ labels: !view.labels })}
-          >
-            <span>City labels</span>
-            <span className={`tag ${view.labels ? "tag--ok" : "tag--muted"}`}>{view.labels ? "ON" : "OFF"}</span>
-          </button>
-          <button
-            className="flex w-full items-center justify-between py-0.5 text-left text-[10.5px] text-[var(--text-dim)]"
-            onClick={() => onSetView({ night: !view.night })}
-          >
-            <span>Night side</span>
-            <span className={`tag ${view.night ? "tag--ok" : "tag--muted"}`}>{view.night ? "ON" : "OFF"}</span>
-          </button>
+          <div className="layer-list">
+            <LayerToggle
+              icon={<MapPin size={11} />}
+              label="City areas"
+              checked={view.areasOn}
+              onChange={() => onSetView({ areasOn: !view.areasOn })}
+            />
+            <LayerToggle
+              icon={<Flame size={11} className="text-[var(--ember)]" />}
+              label="Fire watch"
+              checked={view.fireOn}
+              onChange={() => onSetView({ fireOn: !view.fireOn })}
+            />
+            <LayerToggle
+              icon={<LayoutGrid size={11} className="text-[var(--cyan)]" />}
+              label="MERRA cell grid"
+              checked={view.gridOn}
+              onChange={() => onSetView({ gridOn: !view.gridOn })}
+            />
+            <LayerToggle
+              icon={<TagIcon size={11} />}
+              label="City labels"
+              checked={view.labels}
+              onChange={() => onSetView({ labels: !view.labels })}
+            />
+            <LayerToggle
+              icon={<Moon size={11} />}
+              label="Night side"
+              checked={view.night}
+              onChange={() => onSetView({ night: !view.night })}
+            />
+          </div>
         </section>
 
-        <button className="mt-2 w-full text-left font-mono text-[8px] leading-relaxed tracking-[0.08em] text-[var(--text-muted)] hover:text-[var(--accent)]" onClick={onMethods}>
-          METHOD {data.trends.methodVersion} · SEN + MANN–KENDALL + FDR
-          <br />
-          NASA POWER / MERRA-2 · CERES · NASA FIRMS
-          <br />
-          <span className="text-[var(--accent-dim)]">OPEN METHODS + LIMITATIONS →</span>
+        <button type="button" className="method-card" onClick={onMethods} id="tour-methods">
+          <span className="method-card__kicker">METHOD {data.trends.methodVersion}</span>
+          <span className="method-card__name">SEN + MANN-KENDALL + FDR</span>
+          <span className="method-card__source">NASA POWER / MERRA-2 · CERES · NASA FIRMS</span>
+          <span className="method-card__cta">
+            OPEN METHODS + LIMITATIONS
+            <span aria-hidden="true">→</span>
+          </span>
         </button>
       </div>
     </aside>

@@ -7,6 +7,7 @@ import {
   mergeCoreData,
   type CoreData,
 } from "@/lib/api";
+import { startFeatureTour } from "@/lib/tour";
 import type { CaseEntry, FireCluster, Lens, Season, ViewState, WindowId } from "@/lib/types";
 import { cityById, recordKey, windowById } from "@/lib/trends";
 import { GlobeMap, type GlobeMapHandle } from "@/components/GlobeMap";
@@ -28,6 +29,7 @@ const DEFAULT_VIEW: ViewState = {
   season: "all",
   cityId: null,
   panelTab: "file",
+  areasOn: true,
   fireOn: false,
   night: false,
   labels: true,
@@ -93,6 +95,7 @@ function parseUrl(data: CoreData): ViewState {
   const panel = params.get("panel");
   if (panel === "brief") next.panelTab = "file";
   else if (panel === "file" || panel === "fire") next.panelTab = panel;
+  next.areasOn = params.get("areas") !== "0";
   next.fireOn = params.get("fire") === "1";
   next.night = params.get("night") === "1";
   next.labels = params.get("labels") !== "0";
@@ -114,6 +117,7 @@ function urlFor(view: ViewState, data: CoreData) {
   params.set("lens", view.lens);
   params.set("panel", view.panelTab);
   params.set("mode", view.mode);
+  if (!view.areasOn) params.set("areas", "0");
   if (view.fireOn) params.set("fire", "1");
   if (view.night) params.set("night", "1");
   if (!view.labels) params.set("labels", "0");
@@ -125,6 +129,7 @@ export default function App() {
   const [data, setData] = useState<CoreData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [projection, setProjection] = useState<"globe" | "mercator">("globe");
   const [splashDone, setSplashDone] = useState(false);
   const [view, setViewState] = useState<ViewState>(DEFAULT_VIEW);
   const [toast, setToast] = useState<string | null>(null);
@@ -353,6 +358,7 @@ export default function App() {
         view={view}
         onSelectCity={selectCity}
         onReady={() => setMapReady(true)}
+        onProjectionChange={setProjection}
       />
       <div className="vignette" />
       <div className="crt-scanlines" />
@@ -369,7 +375,7 @@ export default function App() {
         fetchingCity={fetchingCity}
         onShare={share}
         onMethods={() => setMethodsOpen(true)}
-        onShortcuts={() => setShortcutsOpen(true)}
+        onTour={() => startFeatureTour(data.cities.length)}
       />
 
       <VariableRail
@@ -400,12 +406,26 @@ export default function App() {
         />
       ) : null}
 
-      <div className="map-controls glass-panel !p-1">
+      <div className="map-controls glass-panel !p-1" id="tour-map-controls">
         <button className="btn-hud btn-hud--ghost !px-2" onClick={() => mapRef.current?.zoomBy(1)} aria-label="Zoom in"><Plus size={12} /></button>
         <button className="btn-hud btn-hud--ghost !px-2" onClick={() => mapRef.current?.zoomBy(-1)} aria-label="Zoom out"><Minus size={12} /></button>
         <div className="h-px w-full bg-[var(--border)]" />
-        <button className="btn-hud btn-hud--ghost !px-2" onClick={() => mapRef.current?.setProjection("globe")} title="Globe projection"><Globe2 size={12} /></button>
-        <button className="btn-hud btn-hud--ghost !px-2" onClick={() => mapRef.current?.setProjection("mercator")} title="Flat projection"><MapIcon size={12} /></button>
+        <button
+          className={`btn-hud btn-hud--ghost !px-2 ${projection === "globe" ? "btn-hud--active" : ""}`}
+          onClick={() => mapRef.current?.setProjection("globe")}
+          aria-pressed={projection === "globe"}
+          title="Globe projection"
+        >
+          <Globe2 size={12} />
+        </button>
+        <button
+          className={`btn-hud btn-hud--ghost !px-2 ${projection === "mercator" ? "btn-hud--active" : ""}`}
+          onClick={() => mapRef.current?.setProjection("mercator")}
+          aria-pressed={projection === "mercator"}
+          title="Flat projection"
+        >
+          <MapIcon size={12} />
+        </button>
         <button className="btn-hud btn-hud--ghost !px-2" onClick={() => mapRef.current?.reset()} title="Reset camera"><RotateCcw size={12} /></button>
         <div className="h-px w-full bg-[var(--border)]" />
         <button
@@ -420,7 +440,7 @@ export default function App() {
       <CitySearch cities={data.cities} onSelect={selectCity} />
 
       {hero ? (
-        <div className="cases-strip glass-panel px-2 py-1.5">
+        <div className="cases-strip glass-panel px-2 py-1.5" id="tour-cases">
           <span className="hud-label mr-1 flex items-center gap-1"><Sparkles size={9} /> STARTER CASES</span>
           {data.cases.slice(0, 6).map((entry) => (
             <button key={entry.slug} className="chip-btn !py-1" onClick={() => openCase(entry)} title={entry.narrative}>

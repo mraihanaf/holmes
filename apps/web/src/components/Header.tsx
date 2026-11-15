@@ -12,7 +12,7 @@ export function Header({
   fetchingCity,
   onShare,
   onMethods,
-  onShortcuts,
+  onTour,
 }: {
   data: CoreData;
   view: ViewState;
@@ -21,7 +21,7 @@ export function Header({
   fetchingCity: boolean;
   onShare: () => void;
   onMethods: () => void;
-  onShortcuts: () => void;
+  onTour: () => void;
 }) {
   const [clock, setClock] = useState(() => new Date());
   useEffect(() => {
@@ -66,13 +66,13 @@ export function Header({
           <span className="tag tag--fire">FIRMS: {data.fires.snapshot.end.slice(5)}</span>
         ) : null}
         <span className="hud-mono text-[9px] text-[var(--text-muted)]">UTC {utc}</span>
-        <button className="btn-hud" onClick={onShare} title="Copy share URL">
+        <button className="btn-hud" onClick={onShare} title="Copy share URL" id="tour-share">
           <Share2 size={10} /> SHARE
         </button>
-        <button className="btn-hud btn-hud--ghost" onClick={onMethods} title="Methods and limitations">
+        <button className="btn-hud btn-hud--ghost" onClick={onMethods} title="Methods and limitations" aria-label="Methods and limitations">
           <BookOpen size={11} />
         </button>
-        <button className="btn-hud btn-hud--ghost" onClick={onShortcuts} title="Keyboard shortcuts">
+        <button className="btn-hud btn-hud--ghost" onClick={onTour} title="Feature tour" aria-label="Open feature tour" id="tour-help">
           <CircleHelp size={11} />
         </button>
       </div>

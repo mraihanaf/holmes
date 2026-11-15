@@ -71,7 +71,7 @@ export function CitySearch({
   };
 
   return (
-    <div className="city-search">
+    <div className="city-search" id="tour-city-search">
       <div className="city-search__panel">
         {open ? (
           <div id="city-search-results" className="city-search__results" ref={listRef} role="listbox" aria-label="City results">

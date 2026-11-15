@@ -19,7 +19,7 @@ export function FireWatchPanel({
 }) {
   const clusters = data.fires.clusters;
   return (
-    <div>
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="panel-head">
         <div>
           <div className="city-title flex items-center gap-2"><Flame size={18} className="text-[var(--ember)]" /> Fire Watch</div>
