@@ -6,14 +6,49 @@ export default defineSchema({
     id: v.string(),
     name: v.string(),
     country: v.string(),
+    region: v.string(),
     lat: v.number(),
     lon: v.number(),
     timezone: v.string(),
     population: v.number(),
     anchorRank: v.number(),
-    region: v.string(),
     aliases: v.array(v.string()),
-  }).index("by_slug", ["id"]),
+    cellId: v.string(),
+    curated: v.boolean(),
+  })
+    .index("by_slug", ["id"])
+    .searchIndex("search_name", { searchField: "name" }),
+
+  cells: defineTable({
+    cellId: v.string(),
+    lat: v.number(),
+    lon: v.number(),
+    records: v.any(),
+    seriesGz: v.string(),
+    board: v.any(),
+    pValues: v.any(),
+    status: v.union(v.literal("ready"), v.literal("series_only"), v.literal("failed")),
+    methodVersion: v.string(),
+    fetchedAt: v.number(),
+    error: v.optional(v.string()),
+    source: v.optional(v.string()),
+  }).index("by_cell", ["cellId"]),
+
+  /** Compact projection of `cells` for the reactive board read. */
+  cellBoards: defineTable({
+    cellId: v.string(),
+    board: v.any(),
+    pValues: v.any(),
+    status: v.union(v.literal("ready"), v.literal("series_only"), v.literal("failed")),
+    methodVersion: v.string(),
+    fetchedAt: v.number(),
+  }).index("by_cell", ["cellId"]),
+
+  /** One small doc per counted table, so health never scans full documents. */
+  counters: defineTable({
+    key: v.string(),
+    count: v.number(),
+  }).index("by_key", ["key"]),
 
   variables: defineTable({
     key: v.string(),
@@ -31,12 +66,6 @@ export default defineSchema({
     resourcesTab: v.boolean(),
     sourceDetail: v.string(),
   }).index("by_key", ["key"]),
-
-  cityTrends: defineTable({
-    cityId: v.string(),
-    records: v.any(),
-    series: v.any(),
-  }).index("by_city", ["cityId"]),
 
   cases: defineTable({
     slug: v.string(),

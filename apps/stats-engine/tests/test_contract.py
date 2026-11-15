@@ -211,3 +211,27 @@ def test_internal_error_returns_500(monkeypatch):
 
     assert response.status_code == 500
     assert response.json()["detail"] == "Internal stats engine error."
+
+
+def test_analyze_cell_returns_all_window_season_combinations(client):
+    points = monthly_payload(years=30, slope=0.2, noise=0.05)["points"]
+    payload = {
+        "cell_id": "c167_458",
+        "series": [
+            {"variable_key": "T2M", "units": "°C", "points": points},
+            {"variable_key": "PRECTOTCORR", "units": "mm/day", "points": points},
+        ],
+        "windows": [{"id": "25y", "start": 2001, "end": 2029}],
+        "seasons": ["all", "DJF"],
+    }
+
+    response = client.post("/analyze/cell", json=payload)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["cell_id"] == "c167_458"
+    assert body["method_version"] == "1.0.0"
+    assert len(body["results"]) == 4
+    assert {row["window"] for row in body["results"]} == {"25y"}
+    assert {row["season"] for row in body["results"]} == {"all", "DJF"}
+    assert all(row["result"]["status"] in {"ok", "insufficient_data"} for row in body["results"])

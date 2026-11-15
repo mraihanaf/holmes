@@ -246,7 +246,7 @@ function CityFileView({
           <dt>Source</dt><dd>NASA POWER / {primaryVariable?.sourceDetail} ({primaryVariable?.code})</dd>
           <dt>Parameter</dt><dd>{primaryVariable?.label} ({primaryVariable?.units})</dd>
           <dt>Period</dt><dd>{window.start}–{window.end} · {view.season === "all" ? "all months" : view.season}</dd>
-          <dt>Retrieved</dt><dd>{data.trends.generatedAt.slice(0, 10)} · cached demo</dd>
+          <dt>Retrieved</dt><dd>{data.trends.generatedAt.slice(0, 10)} · fetched on demand and cached in Convex</dd>
           <dt>Method A</dt><dd>Seasonal Sen slope · Hamed-Rao Mann–Kendall</dd>
           <dt>Method B</dt><dd>OLS with HAC (12 lags) · {primaryRecord?.methodDependent ? "disagrees" : "cross-check"}</dd>
           <dt>Method</dt><dd>{data.trends.methodVersion} · q-values FDR (Benjamini–Hochberg)</dd>

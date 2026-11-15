@@ -13,7 +13,9 @@
     "prewarm": "uv run --project apps/stats-engine python scripts/prewarm.py",
     "seed": "bash scripts/seed_convex.sh",
     "stats:serve": "nx run stats-engine:serve",
-    "stats:test": "nx run stats-engine:test"
+    "stats:test": "nx run stats-engine:test",
+    "cities:build": "uv run --project apps/stats-engine python scripts/build_global_cities.py",
+    "seed:cells:build": "python scripts/build_seed_cells.py"
   },
   "devDependencies": {
     "convex": "^1.31.0",

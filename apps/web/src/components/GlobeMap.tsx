@@ -147,6 +147,24 @@ function regionHalfSize(map: MapLibreMap, city: City) {
   };
 }
 
+// A smooth display footprint for cities without a Natural Earth urban-area
+// polygon. It is deliberately not a rectangle: the colored shape is a marker,
+// not the MERRA-2 measurement support.
+function circleRing(
+  lon: number,
+  lat: number,
+  halfLon: number,
+  halfLat: number,
+  segments = 20,
+): [number, number][] {
+  const ring: [number, number][] = [];
+  for (let index = 0; index <= segments; index += 1) {
+    const angle = (index / segments) * Math.PI * 2;
+    ring.push([lon + Math.cos(angle) * halfLon, lat + Math.sin(angle) * halfLat]);
+  }
+  return ring;
+}
+
 function labelPointFor(area: CityAreaShape | null | undefined, city: City): [number, number] {
   return area ? [area.properties.labelLon, area.properties.labelLat] : [city.lon, city.lat];
 }
@@ -159,10 +177,24 @@ function labelLiftFor(map: MapLibreMap, city: City, area?: CityAreaShape | null)
   return Math.min(32, Math.max(8, Math.abs(center.y - edge.y) + 4));
 }
 
+function populationFloor(zoom: number): number {
+  if (zoom < 3) return 5_000_000;
+  if (zoom < 4) return 500_000;
+  if (zoom < 5) return 100_000;
+  return 0;
+}
+
 function visibleCities(data: CoreData, selectedCityId: string | null, zoom: number) {
-  return zoom < 3
-    ? data.cities.filter((city) => city.population >= 5_000_000 || city.id === selectedCityId)
-    : data.cities;
+  const floor = populationFloor(zoom);
+  const visible: City[] = [];
+  for (const city of data.cities) {
+    // Cached cells are the board's evidence; keep them visible at every zoom
+    // even when the city is smaller than the density threshold.
+    if (city.population >= floor || city.id === selectedCityId || data.trends.cities[city.id]) {
+      visible.push(city);
+    }
+  }
+  return visible;
 }
 
 function nearestCity(
@@ -203,11 +235,12 @@ function cityAreas(
         view.mode === "combined" && view.variableKeys.length > 1
           ? compositeForCity(data.trends, city.id, view.variableKeys, view.windowId, view.season)
           : null;
+      const uncached = !data.trends.cities[city.id];
       let color = "#667a8c";
       let fillOpacity = 0.14;
       let borderColor = "#42586b";
       let borderOpacity = 0.3;
-      let insufficient = !record || record.status !== "ok";
+      let insufficient = uncached || !record || record.status !== "ok";
 
       if (view.lens === "effect") {
         const value = composite ? composite.z : record?.slope ?? null;
@@ -241,6 +274,14 @@ function cityAreas(
         fillOpacity = insufficient ? 0.11 : 0.2 + Math.min(1, coverage) * 0.52;
       }
 
+      if (uncached) {
+        color = "#3f505c";
+        fillOpacity = 0.1;
+        borderColor = "#42586b";
+        borderOpacity = 0.2;
+        insufficient = true;
+      }
+
       if (selected) {
         fillOpacity = Math.min(0.94, fillOpacity + 0.18);
       } else if (selectedCityId) {
@@ -248,14 +289,14 @@ function cityAreas(
       }
 
       const { halfLat, halfLon } = regionHalfSize(map, city);
-      const fallbackRing: [number, number][] = [
-        [city.lon - halfLon, city.lat - halfLat],
-        [city.lon + halfLon, city.lat - halfLat],
-        [city.lon + halfLon, city.lat + halfLat],
-        [city.lon - halfLon, city.lat + halfLat],
-        [city.lon - halfLon, city.lat - halfLat],
-      ];
-      const area = geometries.get(city.id);
+      const markerScale = uncached ? 0.62 : 1;
+      const fallbackRing = circleRing(
+        city.lon,
+        city.lat,
+        halfLon * markerScale,
+        halfLat * markerScale,
+      );
+      const area = city.curated ? geometries.get(city.id) : undefined;
 
       return {
         type: "Feature" as const,
@@ -270,6 +311,7 @@ function cityAreas(
           borderOpacity,
           selected: selected ? 1 : 0,
           insufficient: insufficient ? 1 : 0,
+          uncached: uncached ? 1 : 0,
         },
         geometry: (area?.geometry ?? { type: "Polygon" as const, coordinates: [fallbackRing] }) as Polygon | MultiPolygon,
       };
@@ -486,7 +528,7 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
       map.addSource("city-areas", {
         type: "geojson",
         data: cityAreas(dataRef.current, viewRef.current, viewRef.current.cityId, map, cityGeometriesRef.current),
-        attribution: "City areas: Natural Earth urban areas; GeoBoundaries (CC BY 3.0 IGO)",
+        attribution: "City shapes: Natural Earth urban areas; GeoBoundaries (CC BY 3.0 IGO); circle markers are display footprints",
       });
       map.addLayer({
         id: "city-area-fill",
@@ -620,6 +662,9 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
         const feature = event.features?.[0];
         if (!feature) return;
         const name = String(feature.properties?.name ?? "");
+        const hint = Number(feature.properties?.uncached) === 1
+          ? "NOT CACHED — CLICK TO FETCH"
+          : "CLICK TO INSPECT CITY";
         if (!hoverPopupRef.current) {
           hoverPopupRef.current = new maplibregl.Popup({
             closeButton: false,
@@ -630,7 +675,7 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
         }
         hoverPopupRef.current
           .setLngLat(event.lngLat)
-          .setHTML(`<span class="holmes-popup__name">${name}</span><span class="holmes-popup__hint">CLICK TO INSPECT CITY</span>`)
+          .setHTML(`<span class="holmes-popup__name">${name}</span><span class="holmes-popup__hint">${hint}</span>`)
           .addTo(map);
       });
       map.on("mouseleave", "city-area-fill", () => {
@@ -757,7 +802,7 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
     if (!view.cityId) return;
     const city = data.cities.find((candidate) => candidate.id === view.cityId);
     if (!city) return;
-    const area = cityGeometriesRef.current.get(city.id) ?? null;
+    const area = city.curated ? cityGeometriesRef.current.get(city.id) ?? null : null;
     const [labelLon, labelLat] = labelPointFor(area, city);
     const element = document.createElement("div");
     element.className = "city-label-anchor";
@@ -824,7 +869,7 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
     for (const { city } of scored) {
-      const area = cityGeometriesRef.current.get(city.id) ?? null;
+      const area = city.curated ? cityGeometriesRef.current.get(city.id) ?? null : null;
       const [labelLon, labelLat] = labelPointFor(area, city);
       const element = document.createElement("div");
       element.className = "city-label-anchor";

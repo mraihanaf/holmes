@@ -1,0 +1,44 @@
+{
+ "methodVersion": "1.0.0",
+ "generatedAt": "2026-11-15T09:00:00Z",
+ "windows": [
+  {
+   "id": "full",
+   "start": 1981,
+   "end": 2025,
+   "label": "FULL 1981-2025",
+   "short": "FULL"
+  },
+  {
+   "id": "35y",
+   "start": 1991,
+   "end": 2025,
+   "label": "35Y 1991-2025",
+   "short": "35Y"
+  },
+  {
+   "id": "25y",
+   "start": 2001,
+   "end": 2025,
+   "label": "25Y 2001-2025",
+   "short": "25Y"
+  },
+  {
+   "id": "15y",
+   "start": 2011,
+   "end": 2025,
+   "label": "15Y 2011-2025",
+   "short": "15Y"
+  }
+ ],
+ "seasons": [
+  "all",
+  "DJF",
+  "MAM",
+  "JJA",
+  "SON"
+ ],
+ "cityCount": 7349,
+ "cellCount": 6561,
+ "source": "NASA POWER / MERRA-2 monthly point API; Natural Earth populated places"
+}

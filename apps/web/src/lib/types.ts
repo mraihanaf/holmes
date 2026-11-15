@@ -16,6 +16,8 @@ export interface City {
   anchorRank: number;
   region: string;
   aliases: string[];
+  cellId: string;
+  curated?: boolean;
 }
 
 export interface Variable {
@@ -58,7 +60,7 @@ export interface TrendRecord {
   coverage: number;
   z: number | null;
   effectiveStart: number;
-  q: number;
+  q: number | null;
   qVar: number;
   significantFdr: boolean;
   significantVar: boolean;
@@ -73,6 +75,81 @@ export type CityTrends = {
   seasons: Season[];
   cities: Record<string, Record<string, Record<string, TrendRecord>>>;
 };
+
+export interface BoardMeta {
+  methodVersion: string;
+  generatedAt: string;
+  windows: WindowDef[];
+  seasons: Season[];
+  cellCount: number;
+  cityCount: number;
+  source: string;
+  cachedCells?: number;
+  variableKey?: string;
+  windowId?: WindowId;
+  season?: Season;
+}
+
+export type CompactBoardValue =
+  | [number | null, number | null, number | null, number | null, Direction]
+  | {
+      slope: number | null;
+      z: number | null;
+      q?: number | null;
+      nYears?: number;
+      coverage?: number;
+      direction?: Direction;
+      evidence?: EvidenceLevel;
+    };
+
+export interface CachedBoardRow {
+  cellId: string;
+  slope: number | null;
+  z: number | null;
+  nYears: number;
+  coverage: number;
+  direction: Direction;
+  q?: number | null;
+  p?: number | null;
+  evidence?: EvidenceLevel;
+  methodDependent?: boolean;
+  lat?: number;
+  lon?: number;
+  status?: string;
+  fetchedAt?: number;
+  methodVersion?: string;
+}
+
+export interface CachedBoardResponse {
+  variableKey: string;
+  windowId: WindowId;
+  season: Season;
+  cachedCells: number;
+  rows: CachedBoardRow[];
+  meta?: Partial<BoardMeta>;
+}
+
+export interface CachedCell {
+  cellId: string;
+  lat?: number;
+  lon?: number;
+  records: Record<string, Record<string, TrendRecord>>;
+  board?: Record<string, Record<string, CompactBoardValue>>;
+  pValues?: Record<string, Record<string, number | null>>;
+  seriesGz?: string;
+  status?: "ready" | "series_only" | "failed";
+  methodVersion?: string;
+  fetchedAt?: number;
+  error?: string;
+}
+
+export interface EnsureCityResponse {
+  source: "cache" | "live";
+  cell: CachedCell;
+  city?: City;
+  series?: Record<string, (number | null)[]>;
+  error?: string;
+}
 
 export type SeriesData = {
   startYear: number;

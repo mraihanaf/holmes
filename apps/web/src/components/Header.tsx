@@ -8,6 +8,8 @@ export function Header({
   data,
   view,
   selectedCity,
+  cachedCells,
+  fetchingCity,
   onShare,
   onMethods,
   onShortcuts,
@@ -15,6 +17,8 @@ export function Header({
   data: CoreData;
   view: ViewState;
   selectedCity: City | null;
+  cachedCells: number;
+  fetchingCity: boolean;
   onShare: () => void;
   onMethods: () => void;
   onShortcuts: () => void;
@@ -54,6 +58,10 @@ export function Header({
         <span className="tag tag--muted hide-tablet hide-narrow">WINDOW: {windowDef.start}–{windowDef.end}</span>
         <span className="tag tag--muted hide-tablet hide-narrow">VARS: {view.variableKeys.length}</span>
         <span className="tag tag--muted hide-tablet hide-narrow">CITIES: {data.cities.length}</span>
+        <span className="tag tag--info" title="Cached cells color the map. Gray cities are not cached yet.">
+          CACHED CELLS: {cachedCells}
+        </span>
+        {fetchingCity ? <span className="tag tag--warn">FETCHING CITY DATA</span> : null}
         {data.fires.clusters.length ? (
           <span className="tag tag--fire">FIRMS: {data.fires.snapshot.end.slice(5)}</span>
         ) : null}

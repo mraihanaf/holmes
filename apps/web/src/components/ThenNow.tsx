@@ -3,6 +3,13 @@ import { createPortal } from "react-dom";
 import { Maximize2, X, SplitSquareHorizontal } from "lucide-react";
 import type { ThenNowEntry } from "@/lib/types";
 
+function assetUrl(path: string | undefined): string | undefined {
+  if (!path || !path.startsWith("/")) return path;
+  const base = import.meta.env.BASE_URL;
+  if (base !== "/" && path.startsWith(base)) return path;
+  return `${base.replace(/\/$/, "")}${path}`;
+}
+
 function images(entry: ThenNowEntry, mode: "true" | "false") {
   const start =
     mode === "true"
@@ -12,7 +19,7 @@ function images(entry: ThenNowEntry, mode: "true" | "false") {
     mode === "true"
       ? entry.endTrueImage ?? entry.images?.end?.true ?? entry.trueImage
       : entry.endFalseImage ?? entry.images?.end?.false ?? entry.falseImage;
-  return { start, end };
+  return { start: assetUrl(start), end: assetUrl(end) };
 }
 
 function Compare({ entry, mode, large = false }: { entry: ThenNowEntry; mode: "true" | "false"; large?: boolean }) {

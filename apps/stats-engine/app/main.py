@@ -19,14 +19,22 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import methods
 from .config import METHOD_VERSION
-from .models import AnalyzeRequest, BatchRequest, BatchResponse, TrendResult
+from .models import (
+    AnalyzeRequest,
+    BatchRequest,
+    BatchResponse,
+    CellAnalyzeRequest,
+    CellAnalyzeResponse,
+    CellResultEntry,
+    TrendResult,
+)
 
 logger = logging.getLogger("holmes.stats")
 
 MAX_BODY_BYTES = 10 * 1024 * 1024
 SECRET_ENV = "STATS_SHARED_SECRET"
 SECRET_HEADER = "x-stats-secret"
-PROTECTED_PATHS = frozenset({"/analyze", "/analyze/batch"})
+PROTECTED_PATHS = frozenset({"/analyze", "/analyze/batch", "/analyze/cell"})
 
 
 class _BodyTooLarge(Exception):
@@ -136,3 +144,42 @@ def analyze(request: AnalyzeRequest) -> TrendResult:
 @app.post("/analyze/batch", response_model=BatchResponse)
 def analyze_batch(request: BatchRequest) -> BatchResponse:
     return methods.batch_fdr(request.series)
+
+
+@app.post("/analyze/cell", response_model=CellAnalyzeResponse)
+def analyze_cell(request: CellAnalyzeRequest) -> CellAnalyzeResponse:
+    """Analyze every variable x window x season combination for one cell.
+
+    The caller (Convex) sends one monthly series per variable. This keeps the
+    expensive statistical work in one round trip instead of 200 HTTP calls.
+    """
+    results: list[CellResultEntry] = []
+    for series in request.series:
+        for window in request.windows:
+            points = [
+                point for point in series.points if window.start <= int(point.ts[:4]) <= window.end
+            ]
+            if not points:
+                continue
+            for season in request.seasons:
+                options = request.options.model_copy(update={"season": season})
+                result = methods.analyze_points(
+                    points,
+                    variable_key=series.variable_key,
+                    units=series.units,
+                    frequency="monthly",
+                    options=options,
+                )
+                results.append(
+                    CellResultEntry(
+                        variable_key=series.variable_key,
+                        window=window.id,
+                        season=season,
+                        result=result,
+                    )
+                )
+    return CellAnalyzeResponse(
+        method_version=METHOD_VERSION,
+        cell_id=request.cell_id,
+        results=results,
+    )

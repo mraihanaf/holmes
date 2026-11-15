@@ -94,6 +94,46 @@ class BatchRequest(BaseModel):
     fdr: FdrOptions = Field(default_factory=FdrOptions)
 
 
+class CellWindow(BaseModel):
+    id: str
+    start: int
+    end: int
+
+
+class CellSeries(BaseModel):
+    variable_key: str
+    units: str
+    points: list[SeriesPoint] = Field(min_length=1)
+
+
+class CellAnalyzeRequest(BaseModel):
+    cell_id: str
+    series: list[CellSeries] = Field(min_length=1, max_length=20)
+    windows: list[CellWindow] = Field(
+        default_factory=lambda: [
+            CellWindow(id="full", start=1981, end=2025),
+            CellWindow(id="35y", start=1991, end=2025),
+            CellWindow(id="25y", start=2001, end=2025),
+            CellWindow(id="15y", start=2011, end=2025),
+        ]
+    )
+    seasons: list[Season] = Field(default_factory=lambda: ["all", "DJF", "MAM", "JJA", "SON"])
+    options: AnalysisOptions = Field(default_factory=AnalysisOptions)
+
+
+class CellResultEntry(BaseModel):
+    variable_key: str
+    window: str
+    season: Season
+    result: TrendResult
+
+
+class CellAnalyzeResponse(BaseModel):
+    method_version: str
+    cell_id: str
+    results: list[CellResultEntry]
+
+
 class BatchResultEntry(BaseModel):
     series_id: str
     status: Literal["ok", "insufficient_data"]

@@ -13,5 +13,3 @@ apps/stats-engine/__pycache__/
 .vercel
 .playwright/
 screenshots/
-docs/
-README.md

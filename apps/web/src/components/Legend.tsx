@@ -5,7 +5,7 @@ import { compositeForCity, digitsFor, getRecord, percentile, slopeUnit } from "@
 function CityAreaNote() {
   return (
     <div className="text-[8px] leading-relaxed text-[var(--text-muted)]">
-      Area = city footprint (Natural Earth urban areas; GeoBoundaries in Indonesia). The trend is the MERRA-2 cell. Click a city area to inspect it.
+      Shape = display footprint: a Natural Earth urban area where available, otherwise a circle marker. The trend is measured for the MERRA-2 cell. Click a shape to inspect it.
     </div>
   );
 }

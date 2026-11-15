@@ -1,8 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Flame, Globe2, Map as MapIcon, Minus, Plus, RotateCcw, Sparkles } from "lucide-react";
-import { loadCoreData, type CoreData } from "@/lib/api";
+import {
+  ensureBoards,
+  ensureCityDetail,
+  loadCoreData,
+  mergeCoreData,
+  type CoreData,
+} from "@/lib/api";
 import type { CaseEntry, FireCluster, Lens, Season, ViewState, WindowId } from "@/lib/types";
-import { cityById, windowById } from "@/lib/trends";
+import { cityById, recordKey, windowById } from "@/lib/trends";
 import { GlobeMap, type GlobeMapHandle } from "@/components/GlobeMap";
 import { Splash } from "@/components/Splash";
 import { Header } from "@/components/Header";
@@ -34,6 +40,33 @@ const LENS_KEYS: Record<string, Lens> = {
   "3": "agreement",
   "4": "coverage",
 };
+
+const BOARD_VARIABLES = ["T2M", "PRECTOTCORR", "AOD_55", "T2M_MAX"];
+
+function boardVariableKeys(variableKeys: string[]): string[] {
+  return [...new Set([...variableKeys, ...BOARD_VARIABLES])];
+}
+
+function cachedCellCount(
+  data: CoreData,
+  variableKeys: string[],
+  windowId: WindowId,
+  season: Season,
+): number {
+  const keys = variableKeys.length ? variableKeys : ["T2M"];
+  const key = recordKey(windowId, season);
+  const cells = new Set<string>();
+  for (const city of data.cities) {
+    const records = data.trends.cities[city.id];
+    if (records && keys.some((variableKey) => records[variableKey]?.[key])) cells.add(city.cellId);
+  }
+  return cells.size;
+}
+
+function hasCityRecords(data: CoreData, cityId: string): boolean {
+  const entry = data.trends.cities[cityId];
+  return Boolean(entry && Object.keys(entry).length);
+}
 
 function parseUrl(data: CoreData): ViewState {
   const params = new URLSearchParams(window.location.search);
@@ -96,8 +129,21 @@ export default function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [selectedCluster, setSelectedCluster] = useState<FireCluster | null>(null);
   const [fireNoticeDismissed, setFireNoticeDismissed] = useState(false);
+  const [fetchingCity, setFetchingCity] = useState(false);
+  const [boardRefreshToken, setBoardRefreshToken] = useState(0);
   const mapRef = useRef<GlobeMapHandle>(null);
   const toastTimer = useRef<number | null>(null);
+  const cityRequestRef = useRef<string | null>(null);
+  const cityAttemptsRef = useRef<Set<string>>(new Set());
+  const refreshedTokenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     loadCoreData()
@@ -119,6 +165,74 @@ export default function App() {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(null), 2600);
   }, []);
+
+  const variableSignature = view.variableKeys.join(",");
+
+  useEffect(() => {
+    if (!data) return;
+    ensureBoards(data, boardVariableKeys(view.variableKeys), view.windowId, view.season)
+      .then((next) => {
+        if (!next || !mountedRef.current) return;
+        setData((previous) => (previous ? mergeCoreData(previous, next) : next));
+      })
+      .catch((cause) => console.warn("Board data unavailable", cause));
+  }, [data, variableSignature, view.windowId, view.season]);
+
+  useEffect(() => {
+    if (!view.cityId) {
+      cityRequestRef.current = null;
+      cityAttemptsRef.current.clear();
+      setFetchingCity(false);
+      return;
+    }
+    if (!data) return;
+    const cityId = view.cityId;
+    if (data.loadedCities?.[cityId]) {
+      cityRequestRef.current = null;
+      setFetchingCity(false);
+      return;
+    }
+    const primaryKey = view.variableKeys[0] ?? "T2M";
+    const requestKey = `${cityId}|${primaryKey}|${view.windowId}|${view.season}`;
+    if (cityRequestRef.current === requestKey || cityAttemptsRef.current.has(requestKey)) return;
+    cityAttemptsRef.current.add(requestKey);
+    cityRequestRef.current = requestKey;
+    setFetchingCity(true);
+    ensureCityDetail(data, cityId, primaryKey, view.windowId, view.season)
+      .then((next) => {
+        if (!mountedRef.current || cityRequestRef.current !== requestKey) return;
+        if (next) {
+          setData((previous) => (previous ? mergeCoreData(previous, next) : next));
+          setBoardRefreshToken((token) => token + 1);
+          if (!hasCityRecords(next, cityId)) {
+            showToast(next.backend.mode === "convex" ? "CITY CELL RETURNED NO TRENDS" : "CITY NOT CACHED — OFFLINE DEMO");
+          }
+        } else if (!hasCityRecords(data, cityId)) {
+          showToast(data.backend.mode === "convex" ? "CITY DATA NOT AVAILABLE" : "CITY NOT CACHED — OFFLINE DEMO");
+        }
+      })
+      .catch((cause) => {
+        console.warn(`City ${cityId} detail failed`, cause);
+        if (mountedRef.current && cityRequestRef.current === requestKey) showToast("CITY FETCH FAILED");
+      })
+      .finally(() => {
+        if (cityRequestRef.current === requestKey) {
+          cityRequestRef.current = null;
+          if (mountedRef.current) setFetchingCity(false);
+        }
+      });
+  }, [data, view.cityId, view.variableKeys, view.windowId, view.season, showToast]);
+
+  useEffect(() => {
+    if (!data || !boardRefreshToken || refreshedTokenRef.current === boardRefreshToken) return;
+    refreshedTokenRef.current = boardRefreshToken;
+    ensureBoards(data, boardVariableKeys(view.variableKeys), view.windowId, view.season, true)
+      .then((next) => {
+        if (!next || !mountedRef.current) return;
+        setData((previous) => (previous ? mergeCoreData(previous, next) : next));
+      })
+      .catch((cause) => console.warn("Board refresh after city fetch failed", cause));
+  }, [data, boardRefreshToken, variableSignature, view.windowId, view.season]);
 
   const setView = useCallback((patch: Partial<ViewState>) => {
     setViewState((previous) => {
@@ -198,6 +312,10 @@ export default function App() {
   }, [setView, view.fireOn]);
 
   const selectedCity = data ? cityById(data.cities, view.cityId) : null;
+  const cachedCells = useMemo(
+    () => (data ? cachedCellCount(data, view.variableKeys, view.windowId, view.season) : 0),
+    [data, variableSignature, view.windowId, view.season],
+  );
   const hero = !view.cityId;
   const showPanel = Boolean(view.cityId) || view.panelTab === "fire";
 
@@ -244,6 +362,8 @@ export default function App() {
         data={data}
         view={view}
         selectedCity={selectedCity}
+        cachedCells={cachedCells}
+        fetchingCity={fetchingCity}
         onShare={share}
         onMethods={() => setMethodsOpen(true)}
         onShortcuts={() => setShortcutsOpen(true)}
@@ -311,6 +431,8 @@ export default function App() {
         data={data}
         view={view}
         selectedCity={selectedCity}
+        cachedCells={cachedCells}
+        fetchingCity={fetchingCity}
         onOpenFile={() => setView({ panelTab: "file" })}
         onOpenFire={() => setView({ panelTab: "fire" })}
         onOpenMethods={() => setMethodsOpen(true)}

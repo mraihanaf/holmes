@@ -133,6 +133,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "httpx" },
+    { name = "pyshp" },
     { name = "pytest" },
 ]
 
@@ -150,6 +151,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "httpx", specifier = ">=0.27.0" },
+    { name = "pyshp", specifier = ">=2.3.0" },
     { name = "pytest", specifier = ">=8.3.0" },
 ]
 
@@ -625,6 +627,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7e/bb/c07714c8ba1e662de4482fa69d64f419f19cc3b9ea49f8903dc83235f7a3/pymannkendall-1.4.3.tar.gz", hash = "sha256:f9e3bbbb583b5285d15082aa0007825e5bea4dde9858d2e7ca81ee6f1e378e82", size = 32350, upload-time = "2023-01-14T08:40:24.559Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ee/95/ba23af664f573022daea4bf25c3b69794a77c966ce6c0e3ce13f12117f4f/pymannkendall-1.4.3-py3-none-any.whl", hash = "sha256:7d988efffae26c12c04b95f77042b946c8581da7526d94b2bbfb7416fb55681f", size = 12554, upload-time = "2023-01-14T08:40:19.313Z" },
+]
+
+[[package]]
+name = "pyshp"
+version = "3.1.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/7f/99d68c457a688bc1999019f55114125fb35c0074d61dc8f098f76d2f502a/pyshp-3.1.8.tar.gz", hash = "sha256:ec144fdbe5bae1b99c2ef741dc68228acf7c23a67338046ad3c6fc2c8b340e65", size = 2270337, upload-time = "2026-11-09T17:22:39.117Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f4/09/6de1e1dcde35d181ff529e605f9cf4f04ec0ce0f6b42ddd0e78844b2564b/pyshp-3.1.8-py3-none-any.whl", hash = "sha256:e0308cbcf70a425c0813365c87f676274da27cd86f2dc73a8ed28f173f62807e", size = 73988, upload-time = "2026-11-09T17:22:37.971Z" },
 ]
 
 [[package]]

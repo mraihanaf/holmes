@@ -7,6 +7,8 @@ export function StatusTicker({
   data,
   view,
   selectedCity,
+  cachedCells,
+  fetchingCity,
   onOpenFile,
   onOpenFire,
   onOpenMethods,
@@ -14,6 +16,8 @@ export function StatusTicker({
   data: CoreData;
   view: ViewState;
   selectedCity: City | null;
+  cachedCells: number;
+  fetchingCity: boolean;
   onOpenFile: () => void;
   onOpenFire: () => void;
   onOpenMethods: () => void;
@@ -27,6 +31,9 @@ export function StatusTicker({
   const fire = data.fires.clusters[0];
 
   const items: { text: string; onClick?: () => void }[] = [];
+  if (fetchingCity) {
+    items.push({ text: "FETCHING CITY DATA · NASA POWER CELL · TREND + SERIES CACHE" });
+  }
   if (selectedCity && record) {
     items.push({
       text: `${selectedCity.name.toUpperCase()} ${variable?.code ?? primary} ${signed(record.slope, digitsFor(variable))} ${slopeUnit(variable)} · ${formatP(record.p)}`,
@@ -34,6 +41,7 @@ export function StatusTicker({
     });
   }
   items.push({ text: `${data.cities.length} CITIES · ${view.variableKeys.length} VARIABLES · ${windowDef.start}–${windowDef.end}` });
+  items.push({ text: `${cachedCells} CACHED CELLS · q ACROSS CACHED CELLS · GRAY = NOT CACHED — CLICK TO FETCH` });
   items.push({ text: `LENS: ${view.lens.toUpperCase()} · COMPUTED EVIDENCE` });
   if (fire) {
     items.push({
@@ -65,7 +73,7 @@ export function StatusTicker({
         <span className="ticker-sep">|</span>
         <span>GIBS</span>
         <span className="ticker-sep">|</span>
-        <span className="text-[var(--accent-dim)]">CACHED DEMO</span>
+        <span className="text-[var(--accent-dim)]">{cachedCells} CACHED CELLS</span>
       </span>
     </footer>
   );

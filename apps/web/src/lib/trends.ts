@@ -41,6 +41,129 @@ export function getRecord(
   return trends.cities[cityId]?.[variableKey]?.[recordKey(windowId, season)] ?? null;
 }
 
+export interface CompactRecordInput {
+  slope: number | null;
+  z: number | null;
+  q?: number | null;
+  p?: number | null;
+  nYears?: number;
+  coverage?: number;
+  direction?: Direction;
+  evidence?: EvidenceLevel;
+  methodDependent?: boolean;
+  status?: "ok" | "insufficient_data";
+  significantFdr?: boolean;
+  effectiveStart?: number;
+}
+
+/**
+ * Build a full TrendRecord from the compact board fields that Convex caches.
+ * Detail fields that a board row cannot know (CI, OLS cross-check, raw p) stay
+ * null so the UI can tell a cached summary from a fully analysed cell.
+ */
+export function compactRecord(input: CompactRecordInput): TrendRecord {
+  const status = input.status ?? (input.slope === null ? "insufficient_data" : "ok");
+  const nYears = input.nYears ?? 0;
+  const coverage = input.coverage ?? 0;
+  const q = input.q ?? 1;
+  const direction =
+    input.direction ??
+    (input.slope === null || input.slope === 0
+      ? "none"
+      : input.slope > 0
+        ? "increasing"
+        : "decreasing");
+  const methodDependent = input.methodDependent ?? false;
+  const rawEvidence: EvidenceLevel =
+    input.evidence ??
+    (status !== "ok" || input.slope === null
+      ? "insufficient"
+      : q <= 0.05
+        ? "strong"
+        : q <= 0.1
+          ? "moderate"
+          : "weak");
+  const evidence: EvidenceLevel =
+    methodDependent && rawEvidence === "strong" ? "moderate" : rawEvidence;
+  const significantFdr = input.significantFdr ?? (status === "ok" && q <= 0.05);
+  return {
+    status,
+    slope: input.slope,
+    ci: null,
+    p: input.p ?? null,
+    pOls: null,
+    olsSlope: null,
+    significant: significantFdr,
+    methodDependent,
+    direction,
+    n: nYears * 12,
+    nYears,
+    coverage,
+    z: input.z,
+    effectiveStart: input.effectiveStart ?? 0,
+    q,
+    qVar: q,
+    significantFdr,
+    significantVar: false,
+    evidence,
+    evidenceVar: evidence,
+  };
+}
+
+export function uncachedRecord(): TrendRecord {
+  return {
+    status: "insufficient_data",
+    slope: null,
+    ci: null,
+    p: null,
+    pOls: null,
+    olsSlope: null,
+    significant: false,
+    methodDependent: false,
+    direction: "none",
+    n: 0,
+    nYears: 0,
+    coverage: 0,
+    z: null,
+    effectiveStart: 0,
+    q: 1,
+    qVar: 1,
+    significantFdr: false,
+    significantVar: false,
+    evidence: "insufficient",
+    evidenceVar: "insufficient",
+  };
+}
+
+function trendDetailScore(record: TrendRecord): number {
+  let score = 0;
+  if (record.ci) score += 4;
+  if (record.pOls !== null) score += 2;
+  if (record.p !== null) score += 1;
+  if (record.effectiveStart > 0) score += 1;
+  if (record.n > 0) score += 1;
+  return score;
+}
+
+/**
+ * Field-level merge for a full cell record and its compact board row. The full
+ * record carries the detail fields; the compact board carries the cross-cell
+ * FDR q and evidence. A detail record with q = null must not erase the board
+ * result, or the selected cell would turn gray.
+ */
+export function mergeTrendRecord(existing: TrendRecord, incoming: TrendRecord): TrendRecord {
+  const incomingIsDetail = trendDetailScore(incoming) >= trendDetailScore(existing);
+  const detail = incomingIsDetail ? incoming : existing;
+  const board = incomingIsDetail ? existing : incoming;
+  const merged = { ...detail };
+  if (merged.q == null && board.q != null) merged.q = board.q;
+  if (merged.evidence === "insufficient" && board.evidence !== "insufficient") {
+    merged.evidence = board.evidence;
+  }
+  if (detail.q == null && board.q != null) merged.significantFdr = board.significantFdr;
+  return merged;
+}
+
 export function seriesPoints(
   series: SeriesData,
   cityId: string | null | undefined,

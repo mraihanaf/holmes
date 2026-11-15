@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CornerDownLeft, Search } from "lucide-react";
 import type { City } from "@/lib/types";
 
+const EMPTY_QUERY_LIMIT = 20;
+const SEARCH_RESULT_LIMIT = 40;
+
 export function CitySearch({
   cities,
   onSelect,
@@ -25,6 +28,15 @@ export function CitySearch({
       ),
     );
   }, [cities, query]);
+
+  const suggestions = useMemo(() => {
+    if (!query.trim()) {
+      return [...cities]
+        .sort((a, b) => a.anchorRank - b.anchorRank || b.population - a.population)
+        .slice(0, EMPTY_QUERY_LIMIT);
+    }
+    return filtered.slice(0, SEARCH_RESULT_LIMIT);
+  }, [cities, filtered, query]);
 
   useEffect(() => {
     setActive(0);
@@ -63,7 +75,7 @@ export function CitySearch({
       <div className="city-search__panel">
         {open ? (
           <div id="city-search-results" className="city-search__results" ref={listRef} role="listbox" aria-label="City results">
-            {filtered.map((city, index) => (
+            {suggestions.map((city, index) => (
               <button
                 key={city.id}
                 type="button"
@@ -86,7 +98,12 @@ export function CitySearch({
                 <span className="shrink-0 font-mono text-[8px] text-[var(--accent-dim)]">{city.region}</span>
               </button>
             ))}
-            {!filtered.length ? <div className="city-search__empty">No city matched.</div> : null}
+            {!suggestions.length ? <div className="city-search__empty">No city matched.</div> : null}
+            {suggestions.length < filtered.length ? (
+              <div className="city-search__empty px-2 py-1 text-[8px]">
+                SHOWING {suggestions.length} OF {filtered.length} · REFINE SEARCH
+              </div>
+            ) : null}
           </div>
         ) : null}
         <label className="city-search__row">
@@ -116,13 +133,13 @@ export function CitySearch({
               if (event.key === "ArrowDown") {
                 event.preventDefault();
                 setOpen(true);
-                setActive((index) => Math.min(filtered.length - 1, index + 1));
+                setActive((index) => Math.min(suggestions.length - 1, index + 1));
               } else if (event.key === "ArrowUp") {
                 event.preventDefault();
                 setActive((index) => Math.max(0, index - 1));
               } else if (event.key === "Enter") {
                 event.preventDefault();
-                const city = filtered[active];
+                const city = suggestions[active];
                 if (city) choose(city);
               } else if (event.key === "Escape") {
                 setOpen(false);
