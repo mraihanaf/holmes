@@ -251,3 +251,49 @@ No Redis, Postgres, or orchestration cluster.
 - A failed source does not break cached cases.
 - The 30-second demo video is recorded and stored separately.
 - The team has a phone hotspot and a local fallback plan.
+
+
+---
+
+## Current production deployment (2026-11-15)
+
+| Piece | Where | URL |
+|---|---|---|
+| Static SPA | GitHub Pages, `gh-pages` branch | https://mraihanaf.github.io/holmes/ |
+| Convex backend | Convex production deployment `peaceful-orca-380` | https://peaceful-orca-380.convex.cloud |
+| Python stats engine | FastAPI on this workstation, exposed through a Cloudflare quick tunnel | `STATS_BASE_URL` in Convex prod env |
+| Source | GitHub | https://github.com/mraihanaf/holmes |
+
+The SPA is built with:
+
+```bash
+VITE_CONVEX_URL=https://peaceful-orca-380.convex.cloud \
+VITE_BASE_PATH=/holmes/ \
+pnpm build
+```
+
+Then `dist/apps/web` is pushed to the `gh-pages` branch with a `.nojekyll`
+file. GitHub Pages serves `https://mraihanaf.github.io/holmes/`.
+
+### Stats service caveat
+
+The quick tunnel URL (`*.trycloudflare.com`) is not permanent. If the tunnel
+restarts, update the Convex production env:
+
+```bash
+npx convex env set --prod STATS_BASE_URL https://<new-tunnel>
+npx convex env set --prod STATS_SHARED_SECRET <secret>
+```
+
+For a permanent demo, run a named Cloudflare tunnel, Tailscale Funnel, Fly.io,
+or Render service and set `STATS_BASE_URL` once. If the stats service is
+unreachable, the lazy action still caches the POWER series (`series_only`) and
+the SPA keeps the chart; only the trend verdicts for that new city are missing.
+The 120 curated cells continue to work from Convex.
+
+### Seed the production deployment
+
+```bash
+bash scripts/seed_convex.sh                 # dev
+bash scripts/seed_convex.sh --prod          # production
+```

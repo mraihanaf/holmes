@@ -18,6 +18,12 @@ See [`docs/verification.md`](docs/verification.md) for the Playwright verificati
 | **The File** | On first inspection, the backend fetches one NASA POWER series for the city's MERRA-2 cell, computes all 200 variable × window × season trends through the Python stats engine, and caches the result in Convex. The file shows key notes, verdict, evidence stack with sparklines, a uPlot time-series chart with trend + 95% CI, NASA GIBS Then & Now, and provenance. |
 | **The Watch** | NASA FIRMS cached Indonesia snapshot, top clusters, heatmap, notices, and explicit “hot pixels are not confirmed wildfires” wording. |
 
+## Live
+
+- SPA: https://mraihanaf.github.io/holmes/
+- Backend: Convex production `peaceful-orca-380`
+- The 120 curated cells work from Convex. Any other city is fetched on first inspection; that request needs the Python stats service URL configured in Convex.
+
 ## Quick start
 
 Requirements: **Node 20+**, **pnpm 10+**, **Python 3.12+**, **uv**, and a Convex account.
