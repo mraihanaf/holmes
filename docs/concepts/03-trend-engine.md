@@ -9,7 +9,7 @@ A city marker is not a measurement of the whole city. NASA POWER returns a value
 This matters for the design:
 
 - At global zoom, use a **screen-space halo** around the city. It is a signal blip, not a boundary.
-- At city zoom, replace the halo with the **actual cell footprint**. Draw a translucent rectangle or hexagon with a hairline border and label it “MERRA-2 cell ≈ 55 × 69 km.”
+- At city zoom, replace the halo with a **hexagon marker** and label it “MERRA-2 cell ≈ 55 × 69 km.” Do not draw a rectangle; the label carries the data support.
 - Never draw a filled polygon that looks like the city’s administrative boundary unless you actually have that boundary and a trend computed for it.
 - The city file must say “MERRA-2 grid cell, not a weather station” near the provenance.
 
@@ -132,7 +132,7 @@ Sources for coordinates: Natural Earth populated places (public domain) or a han
 | Level | Visual | What it means | Verdict |
 |---|---|---|---|
 | **A. Halo** | Soft screen-space glow + core dot | “This city’s data cell has a trend” | MVP, global zoom |
-| **B. Cell footprint** | Actual MERRA-2 rectangle/hex | “This is the data support” | MVP, city zoom |
+| **B. Cell marker** | Hexagon marker + label | “This is the data support” | MVP, city zoom |
 | **C. Surface** | Continuous color field | “Every point has a trend” | Not MVP; needs gridded data |
 
 Do **not** draw Voronoi cells around city points. A Voronoi tessellation invents boundaries and implies that the trend applies across the whole cell. It looks like a zone, but it is not a measurement. Use the halo or the actual MERRA-2 cell instead.

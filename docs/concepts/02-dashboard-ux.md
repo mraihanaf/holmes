@@ -74,7 +74,7 @@ At global zoom, each city is a composite marker:
 | **Ring** | Significance | 10–12px ring; solid if significant, dashed/dim if not, hollow if insufficient data |
 | **Label** | City name | On hover, selection, or top-signal cities only |
 
-The halo must not imply a geographic boundary. It is a screen-space signal, like a radar blip. At zoom 5 or higher, replace the halo with the actual MERRA-2 cell footprint: a translucent rounded rectangle or hexagon around the city, with a hairline border and a label “MERRA-2 cell ≈ 55 × 69 km.” That is the “zone.” At global zoom, the halo is the honest abstraction; at city zoom, the cell is the honest geometry.
+The halo must not imply a geographic boundary. It is a screen-space signal, like a radar blip. At zoom 5 or higher, replace the halo with a hexagon marker around the city, a hairline border, and a label “MERRA-2 cell ≈ 55 × 69 km.” Do not draw a rectangle: the marker is a display abstraction, and the label carries the measurement support. At global zoom, the halo is the honest abstraction; at city zoom, the labeled cell is the honest geometry.
 
 ### 3.4 Marker density
 
