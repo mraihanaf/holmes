@@ -2,6 +2,7 @@ import type {
   BoardMeta,
   CachedBoardResponse,
   CachedBoardRow,
+  CachedCell,
   CaseEntry,
   City,
   CityTrends,
@@ -17,17 +18,9 @@ import type {
 } from "./types";
 import { compactRecord, mergeTrendRecord, recordKey } from "./trends";
 
-const base = import.meta.env.BASE_URL;
 const QUERY_TIMEOUT_MS = 15_000;
-const ACTION_TIMEOUT_MS = 90_000;
 const SERIES_START_YEAR = 1981;
 const SERIES_MONTHS = 540;
-
-async function loadJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${base}data/${path}`);
-  if (!response.ok) throw new Error(`Failed to load ${path}: ${response.status}`);
-  return (await response.json()) as T;
-}
 
 export interface ModisTrend {
   series: { month: string; jakarta: number | null; wisconsin: number | null }[];
@@ -84,11 +77,6 @@ const FALLBACK_WINDOWS: WindowDef[] = [
 
 const FALLBACK_SEASONS: Season[] = ["all", "DJF", "MAM", "JJA", "SON"];
 
-interface LegacyCuratedData {
-  trends: CityTrends;
-  series: SeriesData;
-}
-
 interface RecordUpdate {
   cityId: string;
   variableKey: string;
@@ -97,22 +85,10 @@ interface RecordUpdate {
 }
 
 let corePromise: Promise<CoreData> | null = null;
-let legacyPromise: Promise<LegacyCuratedData | null> | null = null;
 let convexDisabled = false;
 const boardPromises = new Map<string, Promise<CachedBoardResponse | null>>();
 const cityPromises = new Map<string, Promise<CoreData | null>>();
 
-function fallbackMeta(): BoardMeta {
-  return {
-    methodVersion: "1.0.0",
-    generatedAt: new Date().toISOString(),
-    windows: FALLBACK_WINDOWS,
-    seasons: FALLBACK_SEASONS,
-    cellCount: 0,
-    cityCount: 0,
-    source: "local cache",
-  };
-}
 
 function convexUrl(): string | null {
   const configured = (import.meta.env.VITE_CONVEX_URL as string | undefined)?.trim();
@@ -162,27 +138,47 @@ export function convexQuery<T>(path: string, args: Record<string, unknown> = {})
   return convexCall<T>("query", path, args, QUERY_TIMEOUT_MS);
 }
 
-export function convexAction<T>(path: string, args: Record<string, unknown> = {}): Promise<T> {
-  return convexCall<T>("action", path, args, ACTION_TIMEOUT_MS);
+function boardMetaFromHealth(
+  health: Record<string, unknown> | null | undefined,
+  cityCount: number,
+): BoardMeta {
+  const methodVersion =
+    typeof health?.methodVersion === "string" ? health.methodVersion : "1.0.0";
+  const cellCount = typeof health?.cellCount === "number" ? health.cellCount : 0;
+  return {
+    methodVersion,
+    generatedAt: new Date().toISOString(),
+    windows: FALLBACK_WINDOWS,
+    seasons: FALLBACK_SEASONS,
+    cellCount,
+    cityCount,
+    source: "convex cache",
+  };
 }
 
 export function loadCoreData(): Promise<CoreData> {
   if (corePromise) return corePromise;
-  corePromise = Promise.all([
-    loadJson<City[]>("cities.json"),
-    loadJson<Variable[]>("variables.json"),
-    loadJson<BoardMeta>("meta.json").catch(() => null),
-    loadJson<FireData>("fires.json").catch(() => emptyFires),
-    loadJson<ThenNowData>("thenNow.json").catch(() => ({})),
-    loadJson<CaseEntry[]>("cases.json").catch(() => []),
-    loadJson<ModisTrend>("modis-case.json").catch(() => null),
-  ]).then(async ([cities, variables, loadedMeta, staticFires, thenNow, staticCases, modis]) => {
-    const meta = loadedMeta ?? fallbackMeta();
+  corePromise = (async () => {
+    if (!convexUrl()) {
+      throw new Error(
+        "VITE_CONVEX_URL is not configured; this build requires cached data from Convex",
+      );
+    }
+
+    const [cities, variables, remoteFires, remoteCases, health] = await Promise.all([
+      convexQuery<City[]>("catalog:listCities"),
+      convexQuery<Variable[]>("catalog:listVariables"),
+      convexQuery<FireData & { pointChunks?: FireData["points"][] }>("fires:latest"),
+      convexQuery<CaseEntry[]>("cases:list"),
+      convexQuery<Record<string, unknown> | null>("system:health"),
+    ]);
+
+    const meta = boardMetaFromHealth(health, cities.length);
     const trends: CityTrends = {
       methodVersion: meta.methodVersion,
       generatedAt: meta.generatedAt,
-      windows: meta.windows?.length ? meta.windows : FALLBACK_WINDOWS,
-      seasons: meta.seasons?.length ? meta.seasons : FALLBACK_SEASONS,
+      windows: meta.windows,
+      seasons: meta.seasons,
       cities: {},
     };
     const series: SeriesData = {
@@ -191,31 +187,29 @@ export function loadCoreData(): Promise<CoreData> {
       cities: {},
     };
 
-    let fires = staticFires;
-    let cases = staticCases;
-    let backend: BackendInfo = { mode: "static" };
-    if (convexUrl()) {
-      try {
-        const [remoteFires, remoteCases, health] = await Promise.all([
-          convexQuery<FireData & { pointChunks?: FireData["points"][] }>("fires:latest"),
-          convexQuery<CaseEntry[]>("cases:list"),
-          convexQuery<Record<string, unknown>>("system:health"),
-        ]);
-        if (remoteFires?.clusters?.length) {
-          const points = Array.isArray(remoteFires.pointChunks)
-            ? remoteFires.pointChunks.flat()
-            : remoteFires.points ?? [];
-          fires = { snapshot: remoteFires.snapshot, points, clusters: remoteFires.clusters } as FireData;
-        }
-        if (Array.isArray(remoteCases) && remoteCases.length) {
-          const order = ["jakarta-warming", "jakarta-scan", "wisconsin-aod", "jakarta-rainfall", "jakarta-air", "wisconsin-temperature"];
-          cases = [...(remoteCases as CaseEntry[])].sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug));
-        }
-        backend = { mode: "convex", health };
-      } catch (cause) {
-        console.info("Convex backend unavailable; using the local cached dataset.", cause);
-      }
+    let fires = emptyFires;
+    if (remoteFires?.clusters?.length) {
+      const points = Array.isArray(remoteFires.pointChunks)
+        ? remoteFires.pointChunks.flat()
+        : remoteFires.points ?? [];
+      fires = {
+        snapshot: remoteFires.snapshot,
+        points,
+        clusters: remoteFires.clusters,
+      } as FireData;
     }
+
+    const order = [
+      "jakarta-warming",
+      "jakarta-scan",
+      "wisconsin-aod",
+      "jakarta-rainfall",
+      "jakarta-air",
+      "wisconsin-temperature",
+    ];
+    const cases = Array.isArray(remoteCases)
+      ? [...remoteCases].sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug))
+      : [];
 
     return {
       cities: [...cities].sort((a, b) => a.anchorRank - b.anchorRank),
@@ -223,14 +217,14 @@ export function loadCoreData(): Promise<CoreData> {
       trends,
       series,
       fires,
-      thenNow,
+      thenNow: {},
       cases,
-      modis,
-      backend,
+      modis: null,
+      backend: { mode: "convex", health: health ?? undefined },
       loadedBoards: {},
       loadedCities: {},
     };
-  });
+  })();
   return corePromise;
 }
 
@@ -375,65 +369,6 @@ function mergeBoardRows(
   return applyRecordUpdates(core, updates);
 }
 
-function curatedCityIds(core: CoreData): Set<string> {
-  return new Set(core.cities.filter((city) => city.curated).map((city) => city.id));
-}
-
-function loadLegacyCurated(): Promise<LegacyCuratedData | null> {
-  if (!legacyPromise) {
-    legacyPromise = Promise.all([
-      loadJson<CityTrends>("city-trends.json").catch(() => null),
-      loadJson<SeriesData>("series.json").catch(() => null),
-    ])
-      .then(([trends, series]) => {
-        if (!trends) return null;
-        return {
-          trends,
-          series: series ?? {
-            startYear: SERIES_START_YEAR,
-            months: SERIES_MONTHS,
-            cities: {},
-          },
-        };
-      })
-      .catch((cause) => {
-        console.info("Legacy curated cache unavailable.", cause);
-        return null;
-      });
-  }
-  return legacyPromise;
-}
-
-function mergeLegacyRecords(
-  core: CoreData,
-  legacy: LegacyCuratedData,
-  cityIds: Set<string>,
-): CoreData {
-  const updates: RecordUpdate[] = [];
-  const seriesUpdates: Record<string, Record<string, (number | null)[]>> = {};
-  for (const city of core.cities) {
-    if (!cityIds.has(city.id)) continue;
-    const variables = legacy.trends.cities[city.id];
-    if (variables) {
-      for (const [variableKey, keys] of Object.entries(variables)) {
-        for (const [key, record] of Object.entries(keys)) {
-          if (core.trends.cities[city.id]?.[variableKey]?.[key]) continue;
-          updates.push({ cityId: city.id, variableKey, key, record });
-        }
-      }
-    }
-    const series = legacy.series.cities[city.id];
-    if (series) {
-      const missingSeries: Record<string, (number | null)[]> = {};
-      for (const [variableKey, values] of Object.entries(series)) {
-        if (!core.series.cities[city.id]?.[variableKey]) missingSeries[variableKey] = values;
-      }
-      if (Object.keys(missingSeries).length) seriesUpdates[city.id] = missingSeries;
-    }
-  }
-  return applySeriesUpdates(applyRecordUpdates(core, updates), seriesUpdates);
-}
-
 export async function ensureBoards(
   core: CoreData,
   variableKeys: string[],
@@ -448,19 +383,11 @@ export async function ensureBoards(
   if (!missing.length) return null;
 
   let next = core;
-  let convexAnswered = false;
   for (const variableKey of missing) {
     const response = await requestBoard(variableKey, windowId, season);
     if (response) {
-      convexAnswered = true;
       next = mergeBoardRows(next, response.rows, variableKey, windowId, season);
-    } else {
-      const legacy = await loadLegacyCurated();
-      if (legacy) next = mergeLegacyRecords(next, legacy, curatedCityIds(core));
     }
-  }
-  if (convexAnswered && next.backend.mode !== "convex") {
-    next = { ...next, backend: { ...next.backend, mode: "convex" } };
   }
   const loadedBoards = { ...(core.loadedBoards ?? {}) };
   for (const variableKey of missing) loadedBoards[boardCacheKey(variableKey, windowId, season)] = true;
@@ -514,53 +441,34 @@ async function mergeCityDetail(
   };
 }
 
-async function mergeLegacyCity(core: CoreData, cityId: string): Promise<CoreData | null> {
-  const city = core.cities.find((candidate) => candidate.id === cityId);
-  if (!city?.curated) return null;
-  const legacy = await loadLegacyCurated();
-  if (!legacy) return null;
-  const next = mergeLegacyRecords(core, legacy, new Set([cityId]));
-  if (next === core) return null;
-  return {
-    ...next,
-    loadedCities: { ...(next.loadedCities ?? core.loadedCities ?? {}), [cityId]: true },
-  };
-}
-
 export async function ensureCityDetail(
   core: CoreData,
   cityId: string,
-  variableKey: string,
-  windowId: WindowId,
-  season: Season,
+  _variableKey: string,
+  _windowId: WindowId,
+  _season: Season,
 ): Promise<CoreData | null> {
   if (core.loadedCities?.[cityId]) return null;
   const pending = cityPromises.get(cityId);
   if (pending) return pending;
   const promise = (async () => {
-    if (hasConvexBackend()) {
-      try {
-        const payload = await convexAction<EnsureCityResponse>("stats:ensureCity", {
-          cityId,
-          variableKey,
-          windowId,
-          season,
-        });
-        const merged = await mergeCityDetail(core, cityId, payload);
-        if (merged) return merged;
-      } catch (cause) {
-        console.info(`City ${cityId} could not be fetched from Convex.`, cause);
-      }
+    if (!hasConvexBackend()) return null;
+    try {
+      const cell = await convexQuery<CachedCell | null>("trends:cellForCity", { cityId });
+      if (!cell?.cellId) return null;
+      return await mergeCityDetail(core, cityId, { source: "cache", cell });
+    } catch (cause) {
+      console.info(`City ${cityId} cached cell unavailable.`, cause);
+      return null;
     }
-    return mergeLegacyCity(core, cityId);
   })().finally(() => cityPromises.delete(cityId));
   cityPromises.set(cityId, promise);
   return promise;
 }
 
+
 export function resetDataCache() {
   corePromise = null;
-  legacyPromise = null;
   convexDisabled = false;
   boardPromises.clear();
   cityPromises.clear();
