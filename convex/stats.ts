@@ -219,7 +219,10 @@ export const ensureCity = action({
     const city = (await ctx.runQuery(internal.catalog.getCityDoc, { cityId: args.cityId })) as CityDoc | null;
     if (!city) throw new ConvexError(`Unknown city: ${args.cityId}`);
 
-    const cellPoint = cellForPoint(city.lat, city.lon);
+    // The stored cell id is authoritative. City coordinates are rounded in
+    // cities.json, so recomputing from them can land on an adjacent cell.
+    const computedCell = cellForPoint(city.lat, city.lon);
+    const cellPoint = { cellId: city.cellId || computedCell.cellId, lat: city.lat, lon: city.lon };
     const cached = (await ctx.runQuery(internal.trends.getCellDoc, {
       cellId: cellPoint.cellId,
     })) as CellDoc | null;
@@ -346,7 +349,10 @@ export const runAnalysis = action({
     const city = (await ctx.runQuery(internal.catalog.getCityDoc, { cityId: args.cityId })) as CityDoc | null;
     if (!city) throw new ConvexError(`Unknown city: ${args.cityId}`);
 
-    const cellPoint = cellForPoint(city.lat, city.lon);
+    // The stored cell id is authoritative. City coordinates are rounded in
+    // cities.json, so recomputing from them can land on an adjacent cell.
+    const computedCell = cellForPoint(city.lat, city.lon);
+    const cellPoint = { cellId: city.cellId || computedCell.cellId, lat: city.lat, lon: city.lon };
     const cacheKey = `analysis:${cellPoint.cellId}:${args.variableKey}:${args.windowId}:${args.season}:${METHOD_VERSION}`;
     if (!args.force) {
       const existing: any = await ctx.runQuery(internal.analyses.getByCacheKey, { cacheKey });

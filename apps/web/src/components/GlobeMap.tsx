@@ -12,9 +12,10 @@ import maplibregl, {
   type MapMouseEvent,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "geojson";
+import type { Feature, FeatureCollection, Point, Polygon } from "geojson";
 import type { CoreData } from "@/lib/api";
 import type { City, ViewState } from "@/lib/types";
+import { SHOWCASE_FOOTPRINTS } from "@/lib/cityFootprints";
 import {
   EVIDENCE_COLORS,
   compositeForCity,
@@ -113,68 +114,15 @@ function domainFor(data: CoreData, view: ViewState): number {
   return Math.max(percentile(values, 92), 1e-6);
 }
 
-const MERRA_HALF_LAT = 0.25;
-const MERRA_HALF_LON = 0.3125;
-const MIN_REGION_PX = 16;
-const MAX_REGION_HALF_DEG = 4;
 const CITY_PICK_RADIUS_PX = 16;
 const SPIN_DEG_PER_SEC = 2;
 const WHOLE_GLOBE_ZOOM = 2.8;
 const SPIN_RESUME_MS = 1200;
+const LABEL_LIFT_PX = 12;
 
-interface CityAreaProperties {
-  id: string;
-  name: string;
-  source: string;
-  labelLon: number;
-  labelLat: number;
-  bbox: [number, number, number, number];
-}
-
-type CityAreaShape = Feature<Polygon | MultiPolygon, CityAreaProperties>;
-
-// Fallback for cities without a footprint in city-areas.geojson: the MERRA-2
-// cell, lifted to a legible size at overview zooms.
-function regionHalfSize(map: MapLibreMap, city: City) {
-  const center = map.project([city.lon, city.lat]);
-  const east = map.project([city.lon + 0.5, city.lat]);
-  const north = map.project([city.lon, city.lat + 0.5]);
-  const pxPerDegreeLon = Math.max(1e-4, Math.abs(east.x - center.x) / 0.5);
-  const pxPerDegreeLat = Math.max(1e-4, Math.abs(north.y - center.y) / 0.5);
-  return {
-    halfLat: Math.min(MAX_REGION_HALF_DEG, Math.max(MERRA_HALF_LAT, (MIN_REGION_PX / 2) / pxPerDegreeLat)),
-    halfLon: Math.min(MAX_REGION_HALF_DEG, Math.max(MERRA_HALF_LON, (MIN_REGION_PX / 2) / pxPerDegreeLon)),
-  };
-}
-
-// A smooth display footprint for cities without a Natural Earth urban-area
-// polygon. It is deliberately not a rectangle: the colored shape is a marker,
-// not the MERRA-2 measurement support.
-function circleRing(
-  lon: number,
-  lat: number,
-  halfLon: number,
-  halfLat: number,
-  segments = 20,
-): [number, number][] {
-  const ring: [number, number][] = [];
-  for (let index = 0; index <= segments; index += 1) {
-    const angle = (index / segments) * Math.PI * 2;
-    ring.push([lon + Math.cos(angle) * halfLon, lat + Math.sin(angle) * halfLat]);
-  }
-  return ring;
-}
-
-function labelPointFor(area: CityAreaShape | null | undefined, city: City): [number, number] {
-  return area ? [area.properties.labelLon, area.properties.labelLat] : [city.lon, city.lat];
-}
-
-function labelLiftFor(map: MapLibreMap, city: City, area?: CityAreaShape | null) {
-  const [lon, lat] = labelPointFor(area, city);
-  const north = area ? area.properties.bbox[3] : city.lat + regionHalfSize(map, city).halfLat;
-  const center = map.project([lon, lat]);
-  const edge = map.project([lon, north]);
-  return Math.min(32, Math.max(8, Math.abs(center.y - edge.y) + 4));
+function labelPointFor(city: City): [number, number] {
+  const footprint = SHOWCASE_FOOTPRINTS[city.id];
+  return footprint ? [footprint.labelLon, footprint.labelLat] : [city.lon, city.lat];
 }
 
 function populationFloor(zoom: number): number {
@@ -216,107 +164,162 @@ function nearestCity(
   return best;
 }
 
-function cityAreas(
+interface CityMarkerStyle {
+  color: string;
+  fillOpacity: number;
+  borderColor: string;
+  borderOpacity: number;
+  insufficient: boolean;
+  uncached: boolean;
+  selected: boolean;
+  radius: number;
+}
+
+function markerRadius(city: City): number {
+  const population = Math.max(0, city.population);
+  const weight = Math.log10(population + 10) / 7;
+  return 2.4 + weight * 2.4;
+}
+
+function styleForCity(
+  data: CoreData,
+  view: ViewState,
+  city: City,
+  selectedCityId: string | null,
+  domain: number,
+): CityMarkerStyle {
+  const selected = city.id === selectedCityId;
+  const record = getRecord(data.trends, city.id, view.variableKeys[0] ?? "T2M", view.windowId, view.season);
+  const composite =
+    view.mode === "combined" && view.variableKeys.length > 1
+      ? compositeForCity(data.trends, city.id, view.variableKeys, view.windowId, view.season)
+      : null;
+  const uncached = !data.trends.cities[city.id];
+  let color = "#667a8c";
+  let fillOpacity = 0.14;
+  let borderColor = "#42586b";
+  let borderOpacity = 0.3;
+  let insufficient = uncached || !record || record.status !== "ok";
+
+  if (view.lens === "effect") {
+    const value = composite ? composite.z : record?.slope ?? null;
+    if (value !== null && value !== undefined && !insufficient) {
+      color = divergenceColor(value, domain);
+      fillOpacity = 0.5 + Math.min(0.36, Math.abs(value / domain) * 0.32);
+    }
+    const significant = composite
+      ? composite.evidence !== "weak" && composite.evidence !== "insufficient"
+      : record?.significantFdr;
+    borderColor = significant ? "#e2eefb" : "#6d8296";
+    borderOpacity = significant ? 0.95 : 0.4;
+  } else if (view.lens === "evidence") {
+    const evidence = composite ? composite.evidence : record?.evidence ?? "insufficient";
+    color = EVIDENCE_COLORS[evidence];
+    const direction = composite ? composite.direction : record?.direction ?? "none";
+    borderColor = direction === "increasing" ? "#f5b84b" : direction === "decreasing" ? "#5aa9ff" : "#8fa6b2";
+    borderOpacity = evidence === "insufficient" ? 0.3 : 0.95;
+    fillOpacity = evidence === "strong" ? 0.9 : evidence === "moderate" ? 0.72 : evidence === "weak" ? 0.48 : 0.16;
+    insufficient = evidence === "insufficient";
+  } else if (view.lens === "agreement") {
+    const agreement = composite?.agreement ?? 0;
+    color = composite ? sequentialColor(agreement, "#1b2c3d", "#6fe7ff") : "#1b2c3d";
+    borderColor = composite?.mixed ? "#8fa6b2" : "#e2eefb";
+    borderOpacity = composite ? (composite.mixed ? 0.55 : 0.95) : 0.25;
+    fillOpacity = composite ? 0.36 + agreement * 0.46 : 0.14;
+    insufficient = !composite || composite.evidence === "insufficient";
+  } else {
+    const coverage = record?.coverage ?? 0;
+    color = sequentialColor(Math.min(1, coverage), "#1b2c3d", "#eaffff");
+    borderColor = insufficient ? "#42586b" : "#e2eefb";
+    borderOpacity = insufficient ? 0.25 : 0.9;
+    fillOpacity = insufficient ? 0.14 : 0.26 + Math.min(1, coverage) * 0.5;
+  }
+
+  if (uncached) {
+    color = "#445767";
+    fillOpacity = 0.2;
+    borderColor = "#5a7182";
+    borderOpacity = 0.4;
+    insufficient = true;
+  }
+
+  if (selected) {
+    fillOpacity = Math.min(0.98, fillOpacity + 0.2);
+    borderOpacity = Math.min(1, borderOpacity + 0.2);
+  } else if (selectedCityId) {
+    fillOpacity *= 0.55;
+  }
+
+  return {
+    color,
+    fillOpacity,
+    borderColor,
+    borderOpacity,
+    insufficient,
+    uncached,
+    selected,
+    radius: markerRadius(city),
+  };
+}
+
+function cityMarkers(
   data: CoreData,
   view: ViewState,
   selectedCityId: string | null,
   map: MapLibreMap,
-  geometries: Map<string, CityAreaShape>,
 ) {
   const domain = domainFor(data, view);
-  const primaryKey = view.variableKeys[0] ?? "T2M";
   const ranked = [...visibleCities(data, selectedCityId, map.getZoom())].sort((a, b) => a.population - b.population);
+  const footprints: Feature<Polygon>[] = [];
+  const points: Feature<Point>[] = [];
+
+  for (const city of ranked) {
+    const style = styleForCity(data, view, city, selectedCityId, domain);
+    const properties = {
+      id: city.id,
+      name: city.name,
+      lon: city.lon,
+      lat: city.lat,
+      color: style.color,
+      fillOpacity: style.fillOpacity,
+      borderColor: style.borderColor,
+      borderOpacity: style.borderOpacity,
+      selected: style.selected ? 1 : 0,
+      insufficient: style.insufficient ? 1 : 0,
+      uncached: style.uncached ? 1 : 0,
+      radius: style.radius,
+    };
+    const footprint = SHOWCASE_FOOTPRINTS[city.id];
+    if (footprint) {
+      footprints.push({
+        type: "Feature",
+        properties,
+        geometry: { type: "Polygon", coordinates: [footprint.polygon] },
+      });
+    } else {
+      points.push({
+        type: "Feature",
+        properties,
+        geometry: { type: "Point", coordinates: [city.lon, city.lat] },
+      });
+    }
+  }
+
   return {
-    type: "FeatureCollection" as const,
-    features: ranked.map((city) => {
-      const selected = city.id === selectedCityId;
-      const record = getRecord(data.trends, city.id, primaryKey, view.windowId, view.season);
-      const composite =
-        view.mode === "combined" && view.variableKeys.length > 1
-          ? compositeForCity(data.trends, city.id, view.variableKeys, view.windowId, view.season)
-          : null;
-      const uncached = !data.trends.cities[city.id];
-      let color = "#667a8c";
-      let fillOpacity = 0.14;
-      let borderColor = "#42586b";
-      let borderOpacity = 0.3;
-      let insufficient = uncached || !record || record.status !== "ok";
-
-      if (view.lens === "effect") {
-        const value = composite ? composite.z : record?.slope ?? null;
-        if (value !== null && value !== undefined && !insufficient) {
-          color = divergenceColor(value, domain);
-          fillOpacity = 0.38 + Math.min(0.38, Math.abs(value / domain) * 0.34);
-        }
-        const significant = composite ? composite.evidence !== "weak" && composite.evidence !== "insufficient" : record?.significantFdr;
-        borderColor = significant ? "#e2eefb" : "#6d8296";
-        borderOpacity = significant ? 0.92 : 0.34;
-      } else if (view.lens === "evidence") {
-        const evidence = composite ? composite.evidence : record?.evidence ?? "insufficient";
-        color = EVIDENCE_COLORS[evidence];
-        const direction = composite ? composite.direction : record?.direction ?? "none";
-        borderColor = direction === "increasing" ? "#f5b84b" : direction === "decreasing" ? "#5aa9ff" : "#8fa6b2";
-        borderOpacity = evidence === "insufficient" ? 0.22 : 0.9;
-        fillOpacity = evidence === "strong" ? 0.82 : evidence === "moderate" ? 0.66 : evidence === "weak" ? 0.42 : 0.11;
-        insufficient = evidence === "insufficient";
-      } else if (view.lens === "agreement") {
-        const agreement = composite?.agreement ?? 0;
-        color = composite ? sequentialColor(agreement, "#1b2c3d", "#6fe7ff") : "#1b2c3d";
-        borderColor = composite?.mixed ? "#8fa6b2" : "#e2eefb";
-        borderOpacity = composite ? (composite.mixed ? 0.5 : 0.9) : 0.2;
-        fillOpacity = composite ? 0.3 + agreement * 0.44 : 0.11;
-        insufficient = !composite || composite.evidence === "insufficient";
-      } else {
-        const coverage = record?.coverage ?? 0;
-        color = sequentialColor(Math.min(1, coverage), "#1b2c3d", "#eaffff");
-        borderColor = insufficient ? "#42586b" : "#e2eefb";
-        borderOpacity = insufficient ? 0.2 : 0.85;
-        fillOpacity = insufficient ? 0.11 : 0.2 + Math.min(1, coverage) * 0.52;
-      }
-
-      if (uncached) {
-        color = "#3f505c";
-        fillOpacity = 0.1;
-        borderColor = "#42586b";
-        borderOpacity = 0.2;
-        insufficient = true;
-      }
-
-      if (selected) {
-        fillOpacity = Math.min(0.94, fillOpacity + 0.18);
-      } else if (selectedCityId) {
-        fillOpacity *= 0.55;
-      }
-
-      const { halfLat, halfLon } = regionHalfSize(map, city);
-      const markerScale = uncached ? 0.62 : 1;
-      const fallbackRing = circleRing(
-        city.lon,
-        city.lat,
-        halfLon * markerScale,
-        halfLat * markerScale,
-      );
-      const area = city.curated ? geometries.get(city.id) : undefined;
-
-      return {
-        type: "Feature" as const,
-        properties: {
-          id: city.id,
-          name: city.name,
-          lon: city.lon,
-          lat: city.lat,
-          color,
-          fillOpacity,
-          borderColor,
-          borderOpacity,
-          selected: selected ? 1 : 0,
-          insufficient: insufficient ? 1 : 0,
-          uncached: uncached ? 1 : 0,
-        },
-        geometry: (area?.geometry ?? { type: "Polygon" as const, coordinates: [fallbackRing] }) as Polygon | MultiPolygon,
-      };
-    }),
+    footprints: { type: "FeatureCollection" as const, features: footprints },
+    points: { type: "FeatureCollection" as const, features: points },
   };
+}
+
+function setMarkerData(
+  map: MapLibreMap,
+  data: CoreData,
+  view: ViewState,
+  selectedCityId: string | null,
+) {
+  const markers = cityMarkers(data, view, selectedCityId, map);
+  (map.getSource("city-footprints") as GeoJSONSource | undefined)?.setData(markers.footprints);
+  (map.getSource("city-points") as GeoJSONSource | undefined)?.setData(markers.points);
 }
 
 function primaryKeyFor(view: ViewState) {
@@ -363,9 +366,8 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
   const spinStopped = useRef(false);
   const lastInteraction = useRef(0);
   const markerRef = useRef<maplibregl.Marker | null>(null);
-  const labelMarkersRef = useRef<{ marker: maplibregl.Marker; city: City; area: CityAreaShape | null }[]>([]);
-  const selectedLabelRef = useRef<{ marker: maplibregl.Marker; city: City; area: CityAreaShape | null } | null>(null);
-  const cityGeometriesRef = useRef<Map<string, CityAreaShape>>(new Map());
+  const labelMarkersRef = useRef<{ marker: maplibregl.Marker; city: City }[]>([]);
+  const selectedLabelRef = useRef<{ marker: maplibregl.Marker; city: City } | null>(null);
   const hoverPopupRef = useRef<maplibregl.Popup | null>(null);
   const dataRef = useRef(data);
   const viewRef = useRef(view);
@@ -498,16 +500,6 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
         });
       }
 
-      try {
-        const cityShapes = await fetch(`${import.meta.env.BASE_URL}data/city-areas.geojson`).then(
-          (response) => response.json() as Promise<FeatureCollection<Polygon | MultiPolygon, CityAreaProperties>>,
-        );
-        for (const feature of cityShapes.features) {
-          cityGeometriesRef.current.set(feature.properties.id, feature as CityAreaShape);
-        }
-      } catch (error) {
-        console.warn("City geometry unavailable; using MERRA-2 cells", error);
-      }
       map.addSource("graticule", { type: "geojson", data: graticuleGeoJson(), attribution: "Holmes graticule" });
       map.addLayer({
         id: "graticule-line",
@@ -525,15 +517,16 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
         paint: { "fill-color": "#000000", "fill-opacity": 0.42 },
       });
 
-      map.addSource("city-areas", {
+      const markers = cityMarkers(dataRef.current, viewRef.current, viewRef.current.cityId, map);
+      map.addSource("city-footprints", {
         type: "geojson",
-        data: cityAreas(dataRef.current, viewRef.current, viewRef.current.cityId, map, cityGeometriesRef.current),
-        attribution: "City shapes: Natural Earth urban areas; GeoBoundaries (CC BY 3.0 IGO); circle markers are display footprints",
+        data: markers.footprints,
+        attribution: "Showcase outlines: GeoBoundaries (CC BY 3.0 IGO) and Natural Earth (public domain)",
       });
       map.addLayer({
         id: "city-area-fill",
         type: "fill",
-        source: "city-areas",
+        source: "city-footprints",
         paint: {
           "fill-color": ["get", "color"],
           "fill-opacity": ["get", "fillOpacity"],
@@ -542,17 +535,17 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
       map.addLayer({
         id: "city-area-border",
         type: "line",
-        source: "city-areas",
+        source: "city-footprints",
         paint: {
           "line-color": ["get", "borderColor"],
           "line-opacity": ["get", "borderOpacity"],
-          "line-width": ["case", ["==", ["get", "selected"], 1], 1.7, 0.8],
+          "line-width": ["case", ["==", ["get", "selected"], 1], 1.7, 0.9],
         },
       });
       map.addLayer({
         id: "city-area-selected-glow",
         type: "line",
-        source: "city-areas",
+        source: "city-footprints",
         filter: ["==", ["get", "selected"], 1],
         paint: {
           "line-color": ["get", "color"],
@@ -564,7 +557,7 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
       map.addLayer({
         id: "city-area-selected-outline",
         type: "line",
-        source: "city-areas",
+        source: "city-footprints",
         filter: ["==", ["get", "selected"], 1],
         paint: {
           "line-color": "#eaffff",
@@ -575,13 +568,73 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
       map.addLayer({
         id: "city-area-insufficient-outline",
         type: "line",
-        source: "city-areas",
+        source: "city-footprints",
         filter: ["==", ["get", "insufficient"], 1],
         paint: {
-          "line-color": "#42586b",
+          "line-color": "#6c8496",
           "line-width": 0.9,
-          "line-opacity": 0.6,
+          "line-opacity": 0.55,
           "line-dasharray": [2, 2],
+        },
+      });
+
+      // Screen-space circles: always round, at every globe rotation and pitch.
+      map.addSource("city-points", {
+        type: "geojson",
+        data: markers.points,
+        attribution: "City markers: Holmes display geometry",
+      });
+      map.addLayer({
+        id: "city-point-core",
+        type: "circle",
+        source: "city-points",
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            1, ["+", ["get", "radius"], 0],
+            4, ["+", ["get", "radius"], 1.5],
+            8, ["+", ["get", "radius"], 4],
+            12, ["+", ["get", "radius"], 8],
+          ],
+          "circle-color": ["get", "color"],
+          "circle-opacity": ["get", "fillOpacity"],
+          "circle-stroke-color": ["get", "borderColor"],
+          "circle-stroke-opacity": ["get", "borderOpacity"],
+          "circle-stroke-width": ["case", ["==", ["get", "selected"], 1], 2.2, 1.1],
+        },
+      });
+      map.addLayer({
+        id: "city-point-selected-glow",
+        type: "circle",
+        source: "city-points",
+        filter: ["==", ["get", "selected"], 1],
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            1, ["+", ["*", 2.0, ["get", "radius"]], 3],
+            6, ["+", ["*", 2.0, ["get", "radius"]], 8],
+            12, ["+", ["*", 2.0, ["get", "radius"]], 16],
+          ],
+          "circle-color": ["get", "color"],
+          "circle-opacity": 0.18,
+          "circle-blur": 0.7,
+        },
+      });
+      map.addLayer({
+        id: "city-point-selected-outline",
+        type: "circle",
+        source: "city-points",
+        filter: ["==", ["get", "selected"], 1],
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            1, ["+", ["get", "radius"], 1],
+            6, ["+", ["get", "radius"], 3],
+            12, ["+", ["get", "radius"], 5],
+          ],
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-stroke-color": "#eaffff",
+          "circle-stroke-width": 1.6,
         },
       });
 
@@ -632,7 +685,7 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
 
       map.on("click", (event: MapMouseEvent) => {
         if (map.getLayer("fire-cluster-core") && map.queryRenderedFeatures(event.point, { layers: ["fire-cluster-core"] }).length) return;
-        const hits = map.queryRenderedFeatures(event.point, { layers: ["city-area-fill"] });
+        const hits = map.queryRenderedFeatures(event.point, { layers: ["city-area-fill", "city-point-core"] });
         let hitId: string | null = null;
         let hitDistance = Infinity;
         for (const hit of hits) {
@@ -657,7 +710,7 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
           onSelectRef.current(city.id);
         }
       });
-      map.on("mousemove", "city-area-fill", (event: MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+      const showCityPopup = (event: MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
         map.getCanvas().style.cursor = "pointer";
         const feature = event.features?.[0];
         if (!feature) return;
@@ -677,26 +730,27 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
           .setLngLat(event.lngLat)
           .setHTML(`<span class="holmes-popup__name">${name}</span><span class="holmes-popup__hint">${hint}</span>`)
           .addTo(map);
-      });
-      map.on("mouseleave", "city-area-fill", () => {
+      };
+      map.on("mousemove", "city-area-fill", showCityPopup);
+      map.on("mousemove", "city-point-core", showCityPopup);
+      const hideCityPopup = () => {
         map.getCanvas().style.cursor = "";
         hoverPopupRef.current?.remove();
-      });
+      };
+      map.on("mouseleave", "city-area-fill", hideCityPopup);
+      map.on("mouseleave", "city-point-core", hideCityPopup);
+
       map.on("zoomend", () => {
         // A pitched globe drifts away from the screen centre at overview zooms.
         // Flatten the camera as soon as the globe comes back into view.
         if (map.getZoom() < 3.5 && map.getPitch() > 0.5) {
           map.easeTo({ pitch: 0, duration: 420, essential: true });
         }
-        const source = map.getSource("city-areas") as GeoJSONSource | undefined;
-        source?.setData(cityAreas(dataRef.current, viewRef.current, viewRef.current.cityId, map, cityGeometriesRef.current));
-        updateLabelLift(map);
+        setMarkerData(map, dataRef.current, viewRef.current, viewRef.current.cityId);
         updateLabelVisibility(map);
       });
       map.on("projectiontransition", () => {
-        const source = map.getSource("city-areas") as GeoJSONSource | undefined;
-        source?.setData(cityAreas(dataRef.current, viewRef.current, viewRef.current.cityId, map, cityGeometriesRef.current));
-        updateLabelLift(map);
+        setMarkerData(map, dataRef.current, viewRef.current, viewRef.current.cityId);
         updateLabelVisibility(map);
       });
       map.on("moveend", () => updateLabelVisibility(map));
@@ -780,8 +834,7 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
-    const source = map.getSource("city-areas") as GeoJSONSource | undefined;
-    source?.setData(cityAreas(data, view, view.cityId, map, cityGeometriesRef.current));
+    setMarkerData(map, data, view, view.cityId);
     if (map.getLayer("day-night-fill")) {
       map.setLayoutProperty("day-night-fill", "visibility", view.night ? "visible" : "none");
     }
@@ -802,19 +855,18 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
     if (!view.cityId) return;
     const city = data.cities.find((candidate) => candidate.id === view.cityId);
     if (!city) return;
-    const area = city.curated ? cityGeometriesRef.current.get(city.id) ?? null : null;
-    const [labelLon, labelLat] = labelPointFor(area, city);
+    const [labelLon, labelLat] = labelPointFor(city);
     const element = document.createElement("div");
     element.className = "city-label-anchor";
     const label = document.createElement("span");
     label.className = "city-dom-label city-dom-label--selected";
     label.textContent = city.name;
-    label.style.setProperty("--label-lift", `${labelLiftFor(map, city, area)}px`);
+    label.style.setProperty("--label-lift", `${LABEL_LIFT_PX}px`);
     element.appendChild(label);
     markerRef.current = new maplibregl.Marker({ element, anchor: "center" })
       .setLngLat([labelLon, labelLat])
       .addTo(map);
-    selectedLabelRef.current = { marker: markerRef.current, city, area };
+    selectedLabelRef.current = { marker: markerRef.current, city };
     spinStopped.current = true;
     map.flyTo({
       center: [labelLon, labelLat],
@@ -824,16 +876,6 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
       essential: true,
     });
   }, [view.cityId, data.cities, styleReady]);
-
-  const updateLabelLift = useCallback((map: MapLibreMap) => {
-    const entries = selectedLabelRef.current
-      ? [...labelMarkersRef.current, selectedLabelRef.current]
-      : labelMarkersRef.current;
-    for (const { marker, city, area } of entries) {
-      const label = marker.getElement().querySelector<HTMLElement>(".city-dom-label");
-      label?.style.setProperty("--label-lift", `${labelLiftFor(map, city, area)}px`);
-    }
-  }, []);
 
   const updateLabelVisibility = useCallback((map: MapLibreMap) => {
     const panelVisible = Boolean(viewRef.current.cityId) || viewRef.current.panelTab === "fire";
@@ -869,19 +911,18 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
     for (const { city } of scored) {
-      const area = city.curated ? cityGeometriesRef.current.get(city.id) ?? null : null;
-      const [labelLon, labelLat] = labelPointFor(area, city);
+      const [labelLon, labelLat] = labelPointFor(city);
       const element = document.createElement("div");
       element.className = "city-label-anchor";
       const label = document.createElement("span");
       label.className = "city-dom-label";
       label.textContent = city.name;
-      label.style.setProperty("--label-lift", `${labelLiftFor(map, city, area)}px`);
+      label.style.setProperty("--label-lift", `${LABEL_LIFT_PX}px`);
       element.appendChild(label);
       const marker = new maplibregl.Marker({ element, anchor: "center" })
         .setLngLat([labelLon, labelLat])
         .addTo(map);
-      labelMarkersRef.current.push({ marker, city, area });
+      labelMarkersRef.current.push({ marker, city });
     }
     updateLabelVisibility(map);
   }, [data, view, view.labels, view.cityId, styleReady, updateLabelVisibility]);

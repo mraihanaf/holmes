@@ -97,5 +97,6 @@ about 1.5 s on the existing engine.
 - zoom 4–5: population >= 100,000
 - zoom >= 5: all 7,349
 
-Curated cities keep their Natural Earth footprints (121). Every other city
-uses a circular display marker. The marker is not the MERRA-2 measurement support.
+A small showcase set of curated cities (11) uses low-vertex outline polygons.
+Every other city uses a screen-space circle marker. Neither shape is the
+MERRA-2 measurement support.

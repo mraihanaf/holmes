@@ -5,7 +5,7 @@ import { compositeForCity, digitsFor, getRecord, percentile, slopeUnit } from "@
 function CityAreaNote() {
   return (
     <div className="text-[8px] leading-relaxed text-[var(--text-muted)]">
-      Shape = display footprint: a Natural Earth urban area where available, otherwise a circle marker. The trend is measured for the MERRA-2 cell. Click a shape to inspect it.
+      Shape = a low-vertex showcase outline for a few curated cities, otherwise a screen-space circle. The trend is measured for the MERRA-2 cell. Click a shape to inspect it.
     </div>
   );
 }

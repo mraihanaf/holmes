@@ -50,6 +50,7 @@ export function StatusTicker({
     });
   }
   items.push({ text: `METHOD ${data.trends.methodVersion} · SEN SLOPE · MANN–KENDALL · FDR`, onClick: onOpenMethods });
+  items.push({ text: `STATS ENGINE · ${data.backend.health?.statsConfigured === true ? "LIVE" : "OFFLINE"} · CACHED CELLS STILL WORK` });
   items.push({ text: `NASA POWER / MERRA-2 · RETRIEVED ${data.trends.generatedAt.slice(0, 10)}` });
 
   useEffect(() => {

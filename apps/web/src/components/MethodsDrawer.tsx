@@ -41,7 +41,7 @@ export function MethodsDrawer({ data, onClose }: { data: CoreData; onClose: () =
             <div className="hud-label mb-1 text-[var(--accent)]">WHAT NOT TO READ INTO THIS</div>
             <ul className="list-disc space-y-1 pl-4">
               <li>Cells are fetched lazily when a city is inspected. q-values on the global board are adjusted across the cells currently cached, not a completed global scan.</li>
-              <li>The trend is computed for the MERRA-2 grid cell (about 55 × 69 km) that contains the city point. The colored map shape is a display footprint — a Natural Earth urban area or official boundary where available, otherwise a circle marker. The footprint is display geometry, not the trend&apos;s measurement unit.</li>
+              <li>The trend is computed for the MERRA-2 grid cell (about 55 × 69 km) that contains the city point. The colored map shape is a low-vertex showcase outline for a few curated cities, otherwise a circle marker. It is display geometry, not the trend&apos;s measurement unit.</li>
               <li>A trend is a statistical association, not a causal attribution. Holmes does not forecast.</li>
               <li>A p-value is not the probability that a trend is true. The Evidence Lens shows statistical evidence strength.</li>
               <li>Multiple variables and cities were tested; q-values are FDR-adjusted. A short window is noisier.</li>

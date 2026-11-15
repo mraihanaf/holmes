@@ -35,8 +35,9 @@ The browser tests used headless Chromium with WebGL2 (SwiftShader).
    inspection path; the circle marker is colored and the notes show qVar.
 5. **City search** — 7,349 cities; typing filters instantly and caps the
    rendered list at 40 results.
-6. **Geometry** — curated cities use their Natural Earth/GeoBoundaries
-   footprints; other cities use a circular display marker, never a rectangle.
+6. **Geometry** — 11 showcase cities use low-vertex outline polygons; every
+   other city uses a screen-space circle marker. No city uses a rectangle, and
+   the circle stays round while the globe rotates.
 7. **Console** — no page errors. Only Chromium SwiftShader performance warnings
    appear.
 
