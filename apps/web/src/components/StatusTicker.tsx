@@ -66,7 +66,7 @@ export function StatusTicker({
       <button key={`${index}-${item.text}`} className="ticker-item truncate text-[var(--text-dim)]" onClick={item.onClick}>
         {item.text}
       </button>
-      <span className="ml-auto flex shrink-0 items-center gap-3">
+      <span className="status-ticker__meta ml-auto flex shrink-0 items-center gap-3">
         <span className="ticker-sep">|</span>
         <span>NASA POWER</span>
         <span className="ticker-sep">|</span>

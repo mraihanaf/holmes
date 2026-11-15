@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Flame, Globe2, Map as MapIcon, Minus, Plus, RotateCcw, Sparkles } from "lucide-react";
+import { Flame, Globe2, Map as MapIcon, Minus, Plus, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
 import {
   ensureBoards,
   ensureCityDetail,
@@ -130,6 +130,7 @@ export default function App() {
   const [selectedCluster, setSelectedCluster] = useState<FireCluster | null>(null);
   const [fireNoticeDismissed, setFireNoticeDismissed] = useState(false);
   const [fetchingCity, setFetchingCity] = useState(false);
+  const [railOpen, setRailOpen] = useState(false);
   const [boardRefreshToken, setBoardRefreshToken] = useState(0);
   const mapRef = useRef<GlobeMapHandle>(null);
   const toastTimer = useRef<number | null>(null);
@@ -243,10 +244,12 @@ export default function App() {
   }, []);
 
   const selectCity = useCallback((cityId: string) => {
+    setRailOpen(false);
     setViewState((previous) => ({ ...previous, cityId, panelTab: "file" }));
   }, []);
 
   const openCase = useCallback((entry: CaseEntry) => {
+    setRailOpen(false);
     setViewState((previous) => ({
       ...previous,
       cityId: entry.placeId,
@@ -293,6 +296,7 @@ export default function App() {
       if (event.key === "Escape") {
         setMethodsOpen(false);
         setShortcutsOpen(false);
+        setRailOpen(false);
         return;
       }
       if (typing) return;
@@ -368,12 +372,34 @@ export default function App() {
         onTour={() => startFeatureTour(data.cities.length)}
       />
 
+      {!showPanel ? (
+        <button
+          type="button"
+          className="mobile-controls btn-hud"
+          onClick={() => setRailOpen(true)}
+          aria-controls="holmes-lens-rail"
+          aria-expanded={railOpen}
+          aria-label="Open lens controls"
+        >
+          <SlidersHorizontal size={12} /> CONTROLS
+        </button>
+      ) : null}
+
+      {railOpen ? (
+        <button type="button" className="mobile-rail-backdrop" aria-label="Close lens controls" onClick={() => setRailOpen(false)} />
+      ) : null}
+
       <VariableRail
         data={data}
         view={view}
         selectedCity={selectedCity}
+        open={railOpen}
+        onClose={() => setRailOpen(false)}
         onSetView={setView}
-        onMethods={() => setMethodsOpen(true)}
+        onMethods={() => {
+          setRailOpen(false);
+          setMethodsOpen(true);
+        }}
       />
 
       {showPanel ? (

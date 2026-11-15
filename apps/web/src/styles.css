@@ -32,6 +32,8 @@ html, body, #root {
   color: var(--text);
   font-family: var(--font-body);
   overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -501,3 +503,97 @@ button { cursor: pointer; }
 }
 .driver-popover.holmes-tour .driver-popover-close-btn:hover { color: var(--text); }
 .driver-popover.holmes-tour .driver-popover-arrow { display: none; }
+
+/* ————— Mobile and tablet controls ————— */
+.mobile-controls,
+.mobile-rail-close,
+.mobile-rail-backdrop { display: none; }
+
+@media (max-width: 1099px) {
+  .left-rail {
+    display: flex;
+    position: fixed;
+    top: 70px;
+    left: 0;
+    bottom: 62px;
+    width: min(320px, 88vw);
+    z-index: 56;
+    border-radius: 0 10px 10px 0;
+    transform: translateX(-104%);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 220ms ease, visibility 220ms ease;
+  }
+  .left-rail--open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
+  .mobile-rail-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: rgba(7, 20, 33, 0.55);
+    color: var(--text-muted);
+    transition: color 160ms ease, border-color 160ms ease;
+  }
+  .mobile-rail-close:hover { color: var(--accent); border-color: var(--border-strong); }
+  .mobile-rail-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    border: 0;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.58);
+    backdrop-filter: blur(2px);
+  }
+  .mobile-controls {
+    display: inline-flex;
+    position: absolute;
+    top: 68px;
+    left: 12px;
+    z-index: 45;
+    min-height: 34px;
+    padding: 6px 9px;
+    backdrop-filter: blur(20px);
+  }
+  .right-panel .panel-scroll { padding-bottom: 70px; }
+  .city-search__input { font-size: 16px; }
+  .city-search__item { padding: 9px 10px; }
+  .city-search__results { max-height: min(280px, 45vh); }
+  .seg-btn { padding: 7px 6px; }
+  .layer-row { padding: 10px 0; }
+}
+
+@media (max-width: 767px) {
+  .mobile-controls {
+    top: 61px;
+    left: 10px;
+  }
+  .left-rail {
+    top: 58px;
+    bottom: 30px;
+    width: min(330px, 88vw);
+  }
+  .right-panel { bottom: 30px; }
+  .right-panel .panel-scroll { padding-bottom: 92px; }
+  .city-search { left: 50%; }
+  .status-ticker__meta { display: none; }
+  .map-controls {
+    display: flex;
+    flex-direction: row;
+    top: 61px;
+    right: 10px;
+    bottom: auto;
+    left: auto;
+    gap: 2px;
+  }
+  .map-controls > .h-px { display: none; }
+  .map-controls .btn-hud { min-height: 32px; }
+}

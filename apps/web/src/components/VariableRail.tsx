@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Check, SlidersHorizontal, Layers, Flame, MapPin, Moon, LayoutGrid, Tag as TagIcon } from "lucide-react";
+import { Check, SlidersHorizontal, Layers, Flame, MapPin, Moon, LayoutGrid, Tag as TagIcon, X } from "lucide-react";
 import type { CoreData } from "@/lib/api";
 import type { City, Lens, Season, ViewState, WindowId } from "@/lib/types";
 import { Legend } from "./Legend";
@@ -52,12 +52,16 @@ export function VariableRail({
   data,
   view,
   selectedCity,
+  open,
+  onClose,
   onSetView,
   onMethods,
 }: {
   data: CoreData;
   view: ViewState;
   selectedCity: City | null;
+  open: boolean;
+  onClose: () => void;
   onSetView: (patch: Partial<ViewState>) => void;
   onMethods: () => void;
 }) {
@@ -85,12 +89,17 @@ export function VariableRail({
   };
 
   return (
-    <aside className="left-rail glass-panel">
+    <aside id="holmes-lens-rail" className={`left-rail glass-panel ${open ? "left-rail--open" : ""}`}>
       <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2">
         <div className="hud-label flex items-center gap-1.5">
           <SlidersHorizontal size={10} /> THE LENS
         </div>
-        <div className="hud-label text-[var(--accent)]">{view.variableKeys.length} VARS</div>
+        <div className="flex items-center gap-2">
+          <div className="hud-label text-[var(--accent)]">{view.variableKeys.length} VARS</div>
+          <button type="button" className="mobile-rail-close" onClick={onClose} aria-label="Close lens controls">
+            <X size={13} />
+          </button>
+        </div>
       </div>
 
       <div className="rail-controls">
