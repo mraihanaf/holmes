@@ -1,0 +1,54 @@
+{
+  "jakarta": {
+    "cityId": "jakarta",
+    "label": "Jakarta, Indonesia",
+    "startDate": "2001-08-14",
+    "endDate": "2025-08-15",
+    "sensor": "MODIS Terra",
+    "resolution": "250 m true color \u00b7 500 m false color",
+    "trueImage": "/then-now/jakarta-2001-true.jpg",
+    "falseImage": "/then-now/jakarta-2001-false.jpg",
+    "startTrueImage": "/then-now/jakarta-2001-true.jpg",
+    "startFalseImage": "/then-now/jakarta-2001-false.jpg",
+    "endTrueImage": "/then-now/jakarta-2025-true.jpg",
+    "endFalseImage": "/then-now/jakarta-2025-false.jpg",
+    "images": {
+      "start": {
+        "true": "/then-now/jakarta-2001-true.jpg",
+        "false": "/then-now/jakarta-2001-false.jpg"
+      },
+      "end": {
+        "true": "/then-now/jakarta-2025-true.jpg",
+        "false": "/then-now/jakarta-2025-false.jpg"
+      }
+    },
+    "fallback": false,
+    "caveat": "Same calendar month. Requested 2001-08-15 had a MODIS swath gap over Jakarta, so the nearest clear day (2001-08-14) is used; 2025-08-15 is exact. Clouds and resolution vary; visual context, not a trend test. NASA GIBS / MODIS Terra."
+  },
+  "wisconsin": {
+    "cityId": "wisconsin",
+    "label": "Wisconsin, USA",
+    "startDate": "2002-08-15",
+    "endDate": "2025-08-15",
+    "sensor": "MODIS Terra",
+    "resolution": "250 m true color \u00b7 500 m false color",
+    "trueImage": "/then-now/wisconsin-2002-true.jpg",
+    "falseImage": "/then-now/wisconsin-2002-false.jpg",
+    "startTrueImage": "/then-now/wisconsin-2002-true.jpg",
+    "startFalseImage": "/then-now/wisconsin-2002-false.jpg",
+    "endTrueImage": "/then-now/wisconsin-2025-true.jpg",
+    "endFalseImage": "/then-now/wisconsin-2025-false.jpg",
+    "images": {
+      "start": {
+        "true": "/then-now/wisconsin-2002-true.jpg",
+        "false": "/then-now/wisconsin-2002-false.jpg"
+      },
+      "end": {
+        "true": "/then-now/wisconsin-2025-true.jpg",
+        "false": "/then-now/wisconsin-2025-false.jpg"
+      }
+    },
+    "fallback": false,
+    "caveat": "Same calendar month. Both dates are complete MODIS Terra daily composites; 2025 has more cloud west of the city. Clouds and resolution vary; visual context, not a trend test. NASA GIBS / MODIS Terra."
+  }
+}

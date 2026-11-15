@@ -1,0 +1,183 @@
+[
+ {
+  "key": "T2M",
+  "sourceKey": "nasa-power",
+  "label": "Air temperature",
+  "code": "T2M",
+  "definition": "Air temperature at 2 meters above the surface.",
+  "units": "\u00b0C",
+  "nativeFrequency": "monthly",
+  "aggregation": "mean",
+  "coverageStart": "1981-01",
+  "coverageEnd": "present",
+  "theme": "HEAT",
+  "caveats": [
+   "Reanalysis grid cell, not a weather station."
+  ],
+  "resourcesTab": false,
+  "sourceDetail": "MERRA-2"
+ },
+ {
+  "key": "T2M_MIN",
+  "sourceKey": "nasa-power",
+  "label": "Minimum temperature",
+  "code": "T2M_MIN",
+  "definition": "Daily minimum air temperature at 2 meters.",
+  "units": "\u00b0C",
+  "nativeFrequency": "monthly",
+  "aggregation": "mean",
+  "coverageStart": "1981-01",
+  "coverageEnd": "present",
+  "theme": "HEAT",
+  "caveats": [
+   "Reanalysis grid cell, not a weather station."
+  ],
+  "resourcesTab": false,
+  "sourceDetail": "MERRA-2"
+ },
+ {
+  "key": "T2M_MAX",
+  "sourceKey": "nasa-power",
+  "label": "Maximum temperature",
+  "code": "T2M_MAX",
+  "definition": "Daily maximum air temperature at 2 meters.",
+  "units": "\u00b0C",
+  "nativeFrequency": "monthly",
+  "aggregation": "mean",
+  "coverageStart": "1981-01",
+  "coverageEnd": "present",
+  "theme": "HEAT",
+  "caveats": [
+   "Reanalysis grid cell, not a weather station."
+  ],
+  "resourcesTab": false,
+  "sourceDetail": "MERRA-2"
+ },
+ {
+  "key": "PRECTOTCORR",
+  "sourceKey": "nasa-power",
+  "label": "Rainfall",
+  "code": "PRECTOTCORR",
+  "definition": "Corrected total precipitation rate, expressed as a daily rate.",
+  "units": "mm/day",
+  "nativeFrequency": "monthly",
+  "aggregation": "mean",
+  "coverageStart": "1981-01",
+  "coverageEnd": "present",
+  "theme": "WATER",
+  "caveats": [
+   "Monthly mean of a daily rate, not a monthly total."
+  ],
+  "resourcesTab": false,
+  "sourceDetail": "MERRA-2"
+ },
+ {
+  "key": "GWETROOT",
+  "sourceKey": "nasa-power",
+  "label": "Root-zone soil wetness",
+  "code": "GWETROOT",
+  "definition": "Root-zone soil wetness fraction.",
+  "units": "fraction",
+  "nativeFrequency": "monthly",
+  "aggregation": "mean",
+  "coverageStart": "1981-01",
+  "coverageEnd": "present",
+  "theme": "WATER",
+  "caveats": [
+   "Model-assimilated soil moisture."
+  ],
+  "resourcesTab": false,
+  "sourceDetail": "MERRA-2"
+ },
+ {
+  "key": "GWETTOP",
+  "sourceKey": "nasa-power",
+  "label": "Surface soil wetness",
+  "code": "GWETTOP",
+  "definition": "Surface soil wetness fraction.",
+  "units": "fraction",
+  "nativeFrequency": "monthly",
+  "aggregation": "mean",
+  "coverageStart": "1981-01",
+  "coverageEnd": "present",
+  "theme": "WATER",
+  "caveats": [
+   "Model-assimilated soil moisture."
+  ],
+  "resourcesTab": false,
+  "sourceDetail": "MERRA-2"
+ },
+ {
+  "key": "RH2M",
+  "sourceKey": "nasa-power",
+  "label": "Relative humidity",
+  "code": "RH2M",
+  "definition": "Relative humidity at 2 meters.",
+  "units": "%",
+  "nativeFrequency": "monthly",
+  "aggregation": "mean",
+  "coverageStart": "1981-01",
+  "coverageEnd": "present",
+  "theme": "WATER",
+  "caveats": [
+   "Reanalysis grid cell, not a weather station."
+  ],
+  "resourcesTab": false,
+  "sourceDetail": "MERRA-2"
+ },
+ {
+  "key": "WS2M",
+  "sourceKey": "nasa-power",
+  "label": "Wind speed",
+  "code": "WS2M",
+  "definition": "Wind speed at 2 meters.",
+  "units": "m/s",
+  "nativeFrequency": "monthly",
+  "aggregation": "mean",
+  "coverageStart": "1981-01",
+  "coverageEnd": "present",
+  "theme": "AIR",
+  "caveats": [
+   "Reanalysis grid cell, not a weather station."
+  ],
+  "resourcesTab": false,
+  "sourceDetail": "MERRA-2"
+ },
+ {
+  "key": "ALLSKY_SFC_SW_DWN",
+  "sourceKey": "nasa-power",
+  "label": "All-sky shortwave",
+  "code": "ALLSKY_SFC_SW_DWN",
+  "definition": "All-sky surface shortwave downward irradiance.",
+  "units": "MJ/m\u00b2/day",
+  "nativeFrequency": "monthly",
+  "aggregation": "mean",
+  "coverageStart": "1981-01",
+  "coverageEnd": "present",
+  "theme": "ENERGY",
+  "caveats": [
+   "CERES/SRB product, not MODIS."
+  ],
+  "resourcesTab": false,
+  "sourceDetail": "CERES/SRB"
+ },
+ {
+  "key": "AOD_55",
+  "sourceKey": "nasa-power",
+  "label": "Aerosol optical depth",
+  "code": "AOD_55",
+  "definition": "Aerosol optical depth at 550 nanometers.",
+  "units": "dimensionless",
+  "nativeFrequency": "monthly",
+  "aggregation": "mean",
+  "coverageStart": "2001-01",
+  "coverageEnd": "present",
+  "theme": "AIR",
+  "caveats": [
+   "CERES SYN1deg, not MODIS AOD.",
+   "Coverage starts in 2001."
+  ],
+  "resourcesTab": false,
+  "sourceDetail": "CERES SYN1deg"
+ }
+]
