@@ -119,7 +119,7 @@ Vercel/Netlify/Cloudflare Pages:
 
 - Root directory: repository root (so the pnpm workspace and Nx graph resolve)
 - Build command: `pnpm nx build web`
-- Output directory: `dist/apps/web`
+- Output directory: `apps/web/dist`
 - Environment: `VITE_CONVEX_URL`
 - SPA fallback: rewrite all routes to `index.html`
 
@@ -272,7 +272,7 @@ VITE_BASE_PATH=/holmes/ \
 pnpm build
 ```
 
-Then `dist/apps/web` is pushed to the `gh-pages` branch with a `.nojekyll`
+Then `apps/web/dist` is pushed to the `gh-pages` branch with a `.nojekyll`
 file. GitHub Pages serves `https://mraihanaf.github.io/holmes/`.
 
 ### Stats service caveat

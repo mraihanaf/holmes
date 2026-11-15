@@ -185,7 +185,7 @@ pnpm nx affected -t test    # only projects changed since the base branch
 
 # Deploy
 pnpm exec convex deploy
-pnpm nx build web           # static SPA in dist/apps/web
+pnpm nx build web           # static SPA in apps/web/dist
 cd apps/stats-engine && fly deploy
 ```
 

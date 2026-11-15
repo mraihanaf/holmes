@@ -10,7 +10,7 @@ the dev Convex deployment, and the production Convex deployment.
 | Web unit tests | `pnpm --dir apps/web test` | 12 passed |
 | Stats unit + contract tests | `cd apps/stats-engine && uv run pytest -q` | 23 passed |
 | TypeScript | `pnpm exec tsc -p apps/web/tsconfig.json --noEmit` | clean |
-| Production build | `VITE_CONVEX_URL=... VITE_BASE_PATH=/holmes/ pnpm build` | clean; `dist/apps/web` |
+| Production build | `VITE_CONVEX_URL=... VITE_BASE_PATH=/holmes/ pnpm build` | clean; `apps/web/dist` |
 | Stats health | `curl https://<stats>/healthz` | `{"status":"ok","method_version":"1.0.0"}` |
 | Stats cell endpoint | `POST /analyze/cell` with 10 Jakarta series | 200 results in 1.75 s |
 | Convex dev health | `npx convex run system:health` | 7,349 cities, 128+ cells, 10 variables |
