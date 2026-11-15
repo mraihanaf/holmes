@@ -19,6 +19,7 @@ import type {
 import { compactRecord, mergeTrendRecord, recordKey } from "./trends";
 
 const QUERY_TIMEOUT_MS = 15_000;
+const ACTION_TIMEOUT_MS = 90_000;
 const SERIES_START_YEAR = 1981;
 const SERIES_MONTHS = 540;
 
@@ -136,6 +137,10 @@ async function convexCall<T>(
 
 export function convexQuery<T>(path: string, args: Record<string, unknown> = {}): Promise<T> {
   return convexCall<T>("query", path, args, QUERY_TIMEOUT_MS);
+}
+
+export function convexAction<T>(path: string, args: Record<string, unknown> = {}): Promise<T> {
+  return convexCall<T>("action", path, args, ACTION_TIMEOUT_MS);
 }
 
 function boardMetaFromHealth(
@@ -444,21 +449,39 @@ async function mergeCityDetail(
 export async function ensureCityDetail(
   core: CoreData,
   cityId: string,
-  _variableKey: string,
-  _windowId: WindowId,
-  _season: Season,
+  variableKey: string,
+  windowId: WindowId,
+  season: Season,
 ): Promise<CoreData | null> {
   if (core.loadedCities?.[cityId]) return null;
   const pending = cityPromises.get(cityId);
   if (pending) return pending;
   const promise = (async () => {
     if (!hasConvexBackend()) return null;
+
     try {
       const cell = await convexQuery<CachedCell | null>("trends:cellForCity", { cityId });
-      if (!cell?.cellId) return null;
-      return await mergeCityDetail(core, cityId, { source: "cache", cell });
+      const cacheFresh =
+        cell?.status === "ready" &&
+        (!cell.methodVersion || cell.methodVersion === core.trends.methodVersion) &&
+        Object.keys(cell.records ?? {}).length > 0;
+      if (cell?.cellId && cacheFresh) {
+        return await mergeCityDetail(core, cityId, { source: "cache", cell });
+      }
     } catch (cause) {
-      console.info(`City ${cityId} cached cell unavailable.`, cause);
+      console.info(`City ${cityId} cached cell unavailable; trying live fetch.`, cause);
+    }
+
+    try {
+      const payload = await convexAction<EnsureCityResponse>("stats:ensureCity", {
+        cityId,
+        variableKey,
+        windowId,
+        season,
+      });
+      return await mergeCityDetail(core, cityId, payload);
+    } catch (cause) {
+      console.info(`City ${cityId} live fetch failed.`, cause);
       return null;
     }
   })().finally(() => cityPromises.delete(cityId));

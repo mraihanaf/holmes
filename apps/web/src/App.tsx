@@ -307,7 +307,7 @@ export default function App() {
         <div className="glass-panel max-w-lg p-6 text-center">
           <div className="hud-title text-base text-[var(--amber)]">DATA LOAD FAILED</div>
           <p className="mt-3 text-[12px] leading-relaxed text-[var(--text-dim)]">
-            {error}. This build reads cached data only from Convex. Check <span className="hud-mono text-[var(--accent)]">VITE_CONVEX_URL</span> and seed the deployment with <span className="hud-mono text-[var(--accent)]">pnpm seed</span>.
+            {error}. This build reads data from Convex. Check <span className="hud-mono text-[var(--accent)]">VITE_CONVEX_URL</span> and seed the deployment with <span className="hud-mono text-[var(--accent)]">pnpm seed</span>.
           </p>
           <button className="btn-hud mt-4" onClick={() => window.location.reload()}>RETRY</button>
         </div>
