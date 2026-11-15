@@ -1,0 +1,14 @@
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.vercel
+dist
+apps/web/dist
+screenshots
+data
+convex
+docs
+scripts
+apps/stats-engine

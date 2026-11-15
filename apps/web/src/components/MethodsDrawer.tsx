@@ -52,7 +52,7 @@ export function MethodsDrawer({ data, onClose }: { data: CoreData; onClose: () =
           </section>
           <section>
             <div className="hud-label mb-1 text-[var(--accent)]">SOURCES + ATTRIBUTION</div>
-            <p>NASA POWER monthly point API (MERRA-2, CERES SYN1deg) · NASA FIRMS NRT (MODIS/VIIRS 5-day Indonesia snapshot) · NASA GIBS (MODIS Terra true/false color). City areas: Natural Earth 10m urban areas (public domain); Indonesian city boundaries: GeoBoundaries / BPS-UNOCHA (CC BY 3.0 IGO). Basemap: CARTO Dark Matter; map: MapLibre GL; OSM attribution is displayed on the map. Osiris HUD is an MIT-licensed design reference.</p>
+            <p>NASA POWER monthly point API (MERRA-2, CERES SYN1deg) · NASA FIRMS NRT (MODIS/VIIRS 5-day Indonesia snapshot) · NASA GIBS (MODIS Terra true/false color). City areas: Natural Earth 10m urban areas (public domain); Indonesian city boundaries: GeoBoundaries / BPS-UNOCHA (CC BY 3.0 IGO). Basemap: CARTO Dark Matter; map: MapLibre GL; OSM attribution is displayed on the map.</p>
           </section>
         </div>
       </div>
