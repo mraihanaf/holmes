@@ -12,7 +12,7 @@ import maplibregl, {
   type MapMouseEvent,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Feature, FeatureCollection, Point, Polygon } from "geojson";
+import type { Feature, FeatureCollection, LineString, Point, Polygon } from "geojson";
 import type { CoreData } from "@/lib/api";
 import type { City, ViewState } from "@/lib/types";
 import { SHOWCASE_FOOTPRINTS } from "@/lib/cityFootprints";
@@ -320,6 +320,125 @@ function setMarkerData(
   const markers = cityMarkers(data, view, selectedCityId, map);
   (map.getSource("city-footprints") as GeoJSONSource | undefined)?.setData(markers.footprints);
   (map.getSource("city-points") as GeoJSONSource | undefined)?.setData(markers.points);
+  setGridData(map, data, view, selectedCityId);
+}
+
+function cellBounds(cellId: string): { lonMin: number; latMin: number; lonMax: number; latMax: number } | null {
+  const match = /^c(-?\d+)_(-?\d+)$/.exec(cellId);
+  if (!match) return null;
+  const latIndex = Number(match[1]);
+  const lonIndex = Number(match[2]);
+  if (!Number.isFinite(latIndex) || !Number.isFinite(lonIndex)) return null;
+  const latMin = -90 + latIndex * 0.5;
+  const lonMin = -180 + lonIndex * 0.625;
+  return { lonMin, latMin, lonMax: lonMin + 0.625, latMax: latMin + 0.5 };
+}
+
+function cellRing(bounds: { lonMin: number; latMin: number; lonMax: number; latMax: number }) {
+  return [
+    [bounds.lonMin, bounds.latMin],
+    [bounds.lonMax, bounds.latMin],
+    [bounds.lonMax, bounds.latMax],
+    [bounds.lonMin, bounds.latMax],
+    [bounds.lonMin, bounds.latMin],
+  ] as [number, number][];
+}
+
+function buildWorldGrid() {
+  const features: Feature<LineString>[] = [];
+  for (let latIndex = 0; latIndex <= 360; latIndex += 1) {
+    const lat = -90 + latIndex * 0.5;
+    features.push({
+      type: "Feature",
+      properties: { kind: "world" },
+      geometry: { type: "LineString", coordinates: [[-180, lat], [180, lat]] },
+    });
+  }
+  for (let lonIndex = 0; lonIndex <= 576; lonIndex += 1) {
+    const lon = -180 + lonIndex * 0.625;
+    features.push({
+      type: "Feature",
+      properties: { kind: "world" },
+      geometry: { type: "LineString", coordinates: [[lon, -90], [lon, 90]] },
+    });
+  }
+  return { type: "FeatureCollection" as const, features };
+}
+
+const WORLD_GRID = buildWorldGrid();
+
+function merraGrid(data: CoreData, view: ViewState, selectedCityId: string | null) {
+  const cachedCellIds = new Set<string>();
+  for (const city of data.cities) {
+    if (data.trends.cities[city.id]) cachedCellIds.add(city.cellId);
+  }
+
+  const features: Feature<Polygon | LineString>[] = [];
+  for (const cellId of cachedCellIds) {
+    const bounds = cellBounds(cellId);
+    if (!bounds) continue;
+    features.push({
+      type: "Feature",
+      properties: { kind: "cached", cellId },
+      geometry: { type: "Polygon", coordinates: [cellRing(bounds)] },
+    });
+  }
+
+  const selectedCity = selectedCityId ? data.cities.find((city) => city.id === selectedCityId) : null;
+  const selectedBounds = selectedCity ? cellBounds(selectedCity.cellId) : null;
+  if (selectedCity && selectedBounds) {
+    // Local 9 x 9 cell grid around the selected city: this is the lens scope
+    // at city zoom, not a full-world mesh.
+    const match = /^c(-?\d+)_(-?\d+)$/.exec(selectedCity.cellId);
+    if (match) {
+      const latIndex = Number(match[1]);
+      const lonIndex = Number(match[2]);
+      const latMin = -90 + (latIndex - 4) * 0.5;
+      const latMax = -90 + (latIndex + 5) * 0.5;
+      const lonMin = -180 + (lonIndex - 4) * 0.625;
+      const lonMax = -180 + (lonIndex + 5) * 0.625;
+      for (let index = 0; index <= 9; index += 1) {
+        const lat = -90 + (latIndex - 4 + index) * 0.5;
+        features.push({
+          type: "Feature",
+          properties: { kind: "local" },
+          geometry: { type: "LineString", coordinates: [[lonMin, lat], [lonMax, lat]] },
+        });
+      }
+      for (let index = 0; index <= 9; index += 1) {
+        const lon = -180 + (lonIndex - 4 + index) * 0.625;
+        features.push({
+          type: "Feature",
+          properties: { kind: "local" },
+          geometry: { type: "LineString", coordinates: [[lon, latMin], [lon, latMax]] },
+        });
+      }
+    }
+    features.push({
+      type: "Feature",
+      properties: { kind: "selected", cellId: selectedCity.cellId },
+      geometry: { type: "Polygon", coordinates: [cellRing(selectedBounds)] },
+    });
+  }
+
+  return { type: "FeatureCollection" as const, features };
+}
+
+function setGridData(map: MapLibreMap, data: CoreData, view: ViewState, selectedCityId: string | null) {
+  (map.getSource("merra-grid") as GeoJSONSource | undefined)?.setData(merraGrid(data, view, selectedCityId));
+}
+
+function applyGridVisibility(map: MapLibreMap, visible: boolean) {
+  for (const layer of [
+    "merra-grid-world",
+    "merra-grid-cached",
+    "merra-grid-local",
+    "merra-grid-selected-fill",
+    "merra-grid-selected-glow",
+    "merra-grid-selected-line",
+  ]) {
+    if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", visible ? "visible" : "none");
+  }
 }
 
 function primaryKeyFor(view: ViewState) {
@@ -517,6 +636,79 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
         paint: { "fill-color": "#000000", "fill-opacity": 0.42 },
       });
 
+      map.addSource("merra-grid-world", { type: "geojson", data: WORLD_GRID });
+      map.addLayer({
+        id: "merra-grid-world",
+        type: "line",
+        source: "merra-grid-world",
+        minzoom: 4,
+        paint: {
+          "line-color": "#4d84bd",
+          "line-opacity": 0.13,
+          "line-width": 0.4,
+        },
+      });
+      map.addSource("merra-grid", {
+        type: "geojson",
+        data: merraGrid(dataRef.current, viewRef.current, viewRef.current.cityId),
+        attribution: "MERRA-2 0.5° × 0.625° grid",
+      });
+      map.addLayer({
+        id: "merra-grid-cached",
+        type: "line",
+        source: "merra-grid",
+        filter: ["==", ["get", "kind"], "cached"],
+        paint: {
+          "line-color": "#4d84bd",
+          "line-opacity": 0.42,
+          "line-width": 0.7,
+        },
+      });
+      map.addLayer({
+        id: "merra-grid-local",
+        type: "line",
+        source: "merra-grid",
+        filter: ["==", ["get", "kind"], "local"],
+        paint: {
+          "line-color": "#6fe7ff",
+          "line-opacity": 0.22,
+          "line-width": 0.6,
+        },
+      });
+      map.addLayer({
+        id: "merra-grid-selected-fill",
+        type: "fill",
+        source: "merra-grid",
+        filter: ["==", ["get", "kind"], "selected"],
+        paint: {
+          "fill-color": "#6fe7ff",
+          "fill-opacity": 0.08,
+        },
+      });
+      map.addLayer({
+        id: "merra-grid-selected-glow",
+        type: "line",
+        source: "merra-grid",
+        filter: ["==", ["get", "kind"], "selected"],
+        paint: {
+          "line-color": "#6fe7ff",
+          "line-width": 7,
+          "line-opacity": 0.24,
+          "line-blur": 3,
+        },
+      });
+      map.addLayer({
+        id: "merra-grid-selected-line",
+        type: "line",
+        source: "merra-grid",
+        filter: ["==", ["get", "kind"], "selected"],
+        paint: {
+          "line-color": "#eaffff",
+          "line-width": 2.1,
+          "line-opacity": 0.95,
+        },
+      });
+
       const markers = cityMarkers(dataRef.current, viewRef.current, viewRef.current.cityId, map);
       map.addSource("city-footprints", {
         type: "geojson",
@@ -637,6 +829,8 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
           "circle-stroke-width": 1.6,
         },
       });
+
+      applyGridVisibility(map, viewRef.current.gridOn);
 
       map.addSource("fires", { type: "geojson", data: firePoints(dataRef.current) });
       map.addLayer({
@@ -835,6 +1029,7 @@ export const GlobeMap = forwardRef<GlobeMapHandle, Props>(function GlobeMap(
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
     setMarkerData(map, data, view, view.cityId);
+    applyGridVisibility(map, view.gridOn);
     if (map.getLayer("day-night-fill")) {
       map.setLayoutProperty("day-night-fill", "visibility", view.night ? "visible" : "none");
     }

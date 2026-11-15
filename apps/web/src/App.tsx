@@ -31,6 +31,7 @@ const DEFAULT_VIEW: ViewState = {
   fireOn: false,
   night: false,
   labels: true,
+  gridOn: true,
   methodsOpen: false,
 };
 
@@ -95,6 +96,7 @@ function parseUrl(data: CoreData): ViewState {
   next.fireOn = params.get("fire") === "1";
   next.night = params.get("night") === "1";
   next.labels = params.get("labels") !== "0";
+  next.gridOn = params.get("grid") !== "0";
   next.mode = params.get("mode") === "combined" && next.variableKeys.length > 1 ? "combined" : "single";
   if (next.cityId && !params.get("panel")) next.panelTab = "file";
   return next;
@@ -115,6 +117,7 @@ function urlFor(view: ViewState, data: CoreData) {
   if (view.fireOn) params.set("fire", "1");
   if (view.night) params.set("night", "1");
   if (!view.labels) params.set("labels", "0");
+  if (!view.gridOn) params.set("grid", "0");
   return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
 }
 

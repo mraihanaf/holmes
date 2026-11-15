@@ -38,7 +38,14 @@ The browser tests used headless Chromium with WebGL2 (SwiftShader).
 6. **Geometry** — 11 showcase cities use low-vertex outline polygons; every
    other city uses a screen-space circle marker. No city uses a rectangle, and
    the circle stays round while the globe rotates.
-7. **Console** — no page errors. Only Chromium SwiftShader performance warnings
+7. **MERRA grid** — cached cell borders render; selecting a city draws a local
+   9 × 9 cell mesh and a bright selected-cell border. The Layers toggle hides
+   and shows the grid.
+8. **Then & Now for any city** — Matamoros (Mexico) opens a live GIBS true/false
+   comparison for 2001-08-15 and 2025-08-15; the component shows `LIVE GIBS`.
+9. **Global Fire Watch** — 40 clusters across South Sudan, Australia, and other
+   countries; the panel says `GLOBAL 7-DAY`; heat points are global.
+10. **Console** — no page errors. Only Chromium SwiftShader performance warnings
    appear.
 
 ## Screenshots
@@ -54,5 +61,8 @@ The browser tests used headless Chromium with WebGL2 (SwiftShader).
   ticker says this explicitly.
 - A city marker is a MERRA-2 cell, not a station or administrative boundary.
 - CERES AOD_55 and MODIS MYD08_M3 are separate products.
-- FIRMS detections are hot pixels, not confirmed wildfires.
+- FIRMS detections are hot pixels, not confirmed wildfires. The snapshot is a
+  global 7-day MODIS aggregate, not a live alert feed.
+- Then & Now uses live GIBS imagery for the same calendar date; clouds, haze, and
+  season can obscure the surface.
 - Satellite imagery is visual context, not a trend test.

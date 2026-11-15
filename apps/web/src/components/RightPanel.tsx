@@ -238,7 +238,7 @@ function CityFileView({
         <EvidenceChart points={expandedPoints} record={expandedRecord} variable={expandedVariable} />
       </div>
 
-      <ThenNow entry={thenNow} />
+      <ThenNow entry={thenNow} city={city} />
 
       <div>
         <div className="hud-label mb-1">PROVENANCE</div>

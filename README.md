@@ -13,10 +13,10 @@ See [`docs/verification.md`](docs/verification.md) for the Playwright verificati
 | Surface | What it does |
 |---|---|
 | **The Board** | MapLibre globe with **7,349 populated places in 228 countries** (Natural Earth 10m), grouped into 6,561 MERRA-2 cells. Cached cells are colored by a NASA POWER trend; gray cells are fetched when you inspect them. |
-| **The Lens** | Variable filter, window presets (full, 35Y, 25Y, 15Y), season filter, and four map lenses: Effect, Evidence, Agreement, Coverage. |
+| **The Lens** | Variable filter, window presets (full, 35Y, 25Y, 15Y), season filter, four map lenses (Effect, Evidence, Agreement, Coverage), and a toggleable MERRA-2 grid with a highlighted selected cell. |
 | **City Search** | Search every city by name, country, or region. Results are ranked by population; the search bar sits at the bottom of the board. |
-| **The File** | On first inspection, the backend fetches one NASA POWER series for the city's MERRA-2 cell, computes all 200 variable × window × season trends through the Python stats engine, and caches the result in Convex. The file shows key notes, verdict, evidence stack with sparklines, a uPlot time-series chart with trend + 95% CI, NASA GIBS Then & Now, and provenance. |
-| **The Watch** | NASA FIRMS cached Indonesia snapshot, top clusters, heatmap, notices, and explicit “hot pixels are not confirmed wildfires” wording. |
+| **The File** | On first inspection, the backend fetches one NASA POWER series for the city's MERRA-2 cell, computes all 200 variable × window × season trends through the Python stats engine, and caches the result in Convex. The file shows key notes, verdict, evidence stack with sparklines, a uPlot time-series chart with trend + 95% CI, live NASA GIBS Then & Now for any city, and provenance. |
+| **The Watch** | NASA FIRMS global 7-day MODIS snapshot, top 40 clusters by country, heatmap, notices, and explicit “hot pixels are not confirmed wildfires” wording. |
 
 ## Live
 
@@ -63,8 +63,9 @@ The old demo precomputed every trend for 121 cities and shipped an 8 MB JSON fil
 1. **Cities are static.** `apps/web/public/data/cities.json` carries every populated place plus its MERRA-2 `cellId`.
 2. **The map is a cache view.** `trends:cachedBoard` returns compact rows for cells already in Convex. The SPA paints those cells and leaves the rest gray.
 3. **A city inspection fills the cache.** `stats:ensureCity` checks the cell, fetches one NASA POWER monthly series (10 parameters, 1981–2025) if missing, calls the Python `/analyze/cell` endpoint for all 200 trend combinations, and writes the full records plus a compact `cellBoards` projection.
-4. **q-values are local to the cache.** For a variable/window/season, Benjamini–Hochberg is applied across the cells currently cached, not a completed global scan. The UI says so.
-5. **One POWER series serves a cell.** Every city in a 0.5° × 0.625° MERRA-2 cell shares the same reanalysis series, so the cache key is the cell.
+4. **The grid shows the data support.** Cached cell borders are drawn faintly; selecting a city draws a local 9 × 9 MERRA-2 mesh and highlights the selected cell border.
+5. **q-values are local to the cache.** For a variable/window/season, Benjamini–Hochberg is applied across the cells currently cached, not a completed global scan. The UI says so.
+6. **One POWER series serves a cell.** Every city in a 0.5° × 0.625° MERRA-2 cell shares the same reanalysis series, so the cache key is the cell.
 
 This keeps the first load small (cities + metadata, no 8 MB monolith), makes every city inspectable, and avoids prefetching the planet.
 
@@ -88,6 +89,7 @@ docs/                    concept + technical + problem dossier
 2. **Build the curated seed.** `pnpm seed:cells:build` converts the existing 121-city precomputed trends into `convex/data/seed-cells.jsonl` and `seed-cell-boards.jsonl`.
 3. **Seed Convex.** `bash scripts/seed_convex.sh` imports cities, variables, the curated cells, cases, and fires, then refreshes the health counters.
 4. **Inspect any city.** The `stats:ensureCity` action does the rest at runtime. The Python stats engine is the only place that computes trends.
+5. **Refresh the fire snapshot.** `uv run --project apps/stats-engine --with shapely python scripts/build_global_fires.py` downloads the public FIRMS global 7-day CSV and writes `fires.json` plus the Convex import row.
 
 The curated 121-city prewarm scripts (`scripts/prewarm.py`, `scripts/fetch_power.py`) remain for the offline fallback and the starter cases.
 
@@ -96,8 +98,8 @@ The curated 121-city prewarm scripts (`scripts/prewarm.py`, `scripts/fetch_power
 - **NASA POWER / MERRA-2** monthly values are fetched live for an uncached cell and cached in Convex. Source: NASA POWER monthly point API.
 - **AOD_55** is CERES SYN1deg, not MODIS. The UI labels it correctly.
 - **MODIS MYD08_M3** is a separate Resources-tab cross-check for Jakarta and Wisconsin, using the research CSV from the challenge assets.
-- **NASA FIRMS** is a 5-day Indonesia snapshot (10–14 Nov 2026), confidence-filtered and clustered. It is not a live alert service.
-- **NASA GIBS** images are cached MODIS Terra true/false color for Jakarta and Wisconsin, same calendar month, ±3 days where needed.
+- **NASA FIRMS** is a global 7-day MODIS C6.1 snapshot, confidence ≥ nominal, aggregated to 1° clusters and 0.5° heat cells. It is not a live alert service.
+- **NASA GIBS** Then & Now works for every city. Jakarta and Wisconsin keep their cached curated pairs; every other city builds a live GIBS WMS request for the same calendar date in 2001 and 2025 (true and false color).
 - **Curated cells** are precomputed; every other cell is computed on first inspection. The provenance panel says which path produced the file.
 
 ## Testing
@@ -131,7 +133,7 @@ The current build was verified with Playwright: all 7,349 cities list, 128 cache
 | `stats.runAnalysis` | One-series live analysis, cached in `analyses` |
 | `stats.checkStats` | Python service health |
 | `cases.list`, `cases.get` | Starter cases |
-| `fires.latest` | FIRMS snapshot and clusters |
+| `fires.latest` | Global FIRMS 7-day snapshot, heat points, and clusters |
 | `system.health` | Counts and method/version health |
 | `seed.*` | Import helpers, board projection, counters |
 

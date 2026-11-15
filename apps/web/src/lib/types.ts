@@ -241,6 +241,7 @@ export interface ViewState {
   fireOn: boolean;
   night: boolean;
   labels: boolean;
+  gridOn: boolean;
   methodsOpen: boolean;
 }
 

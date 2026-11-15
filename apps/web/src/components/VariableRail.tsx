@@ -1,4 +1,4 @@
-import { Check, SlidersHorizontal, Layers, Flame } from "lucide-react";
+import { Check, SlidersHorizontal, Layers, Flame, LayoutGrid } from "lucide-react";
 import type { CoreData } from "@/lib/api";
 import type { City, Lens, Season, ViewState, WindowId } from "@/lib/types";
 import { Legend } from "./Legend";
@@ -218,6 +218,13 @@ export function VariableRail({
           >
             <span className="flex items-center gap-1.5"><Flame size={11} className="text-[var(--ember)]" /> Fire watch</span>
             <span className={`tag ${view.fireOn ? "tag--fire" : "tag--muted"}`}>{view.fireOn ? "ON" : "OFF"}</span>
+          </button>
+          <button
+            className="flex w-full items-center justify-between py-0.5 text-left text-[10.5px] text-[var(--text-dim)]"
+            onClick={() => onSetView({ gridOn: !view.gridOn })}
+          >
+            <span className="flex items-center gap-1.5"><LayoutGrid size={11} className="text-[var(--cyan)]" /> MERRA cell grid</span>
+            <span className={`tag ${view.gridOn ? "tag--ok" : "tag--muted"}`}>{view.gridOn ? "ON" : "OFF"}</span>
           </button>
           <button
             className="flex w-full items-center justify-between py-0.5 text-left text-[10.5px] text-[var(--text-dim)]"

@@ -27,11 +27,11 @@ export function FireWatchPanel({
             {clusters.length} clusters · FIRMS NRT · {data.fires.snapshot.start} → {data.fires.snapshot.end}
           </div>
         </div>
-        <span className="tag tag--fire">CACHED SNAPSHOT</span>
+        <span className="tag tag--fire">GLOBAL 7-DAY</span>
       </div>
       <div className="panel-scroll space-y-3">
         <div className="rounded border border-[rgba(255,92,58,0.24)] bg-[rgba(255,92,58,0.06)] p-3 text-[10.5px] leading-relaxed text-[var(--text-dim)]">
-          FIRMS detects hot pixels. They can be wildfires, peat burning, land clearing, agricultural burns, or industrial flares. This is not a confirmed incident. Check BNPB/local authorities.
+          FIRMS detects hot pixels. They can be wildfires, peat burning, land clearing, agricultural burns, or industrial flares. This is not a confirmed incident. Check local authorities.
         </div>
         {clusters.map((cluster) => (
           <div
@@ -76,7 +76,7 @@ export function FireWatchPanel({
           </div>
         ))}
         <div className="font-mono text-[8px] leading-relaxed text-[var(--text-muted)]">
-          SOURCE NASA FIRMS NRT · MODIS/VIIRS · 5-day Indonesia snapshot · confidence-filtered (nominal/high)
+          SOURCE NASA FIRMS NRT · MODIS C6.1 global 7-day · confidence ≥ nominal
           <br />
           Cluster rule: 0.1° cells ranked by summed fire radiative power. A single detection is not a notice.
         </div>
