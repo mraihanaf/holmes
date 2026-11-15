@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Flame, Globe2, Map as MapIcon, Minus, Plus, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
 import {
   ensureBoards,
@@ -9,7 +9,7 @@ import {
 } from "@/lib/api";
 import { startFeatureTour } from "@/lib/tour";
 import type { CaseEntry, FireCluster, Lens, Season, ViewState, WindowId } from "@/lib/types";
-import { cityById, hasCityRecords, recordKey, windowById } from "@/lib/trends";
+import { cityById, hasCityRecords, windowById } from "@/lib/trends";
 import { GlobeMap, type GlobeMapHandle } from "@/components/GlobeMap";
 import { Splash } from "@/components/Splash";
 import { Header } from "@/components/Header";
@@ -47,22 +47,6 @@ const BOARD_VARIABLES = ["T2M", "PRECTOTCORR", "AOD_55", "T2M_MAX"];
 
 function boardVariableKeys(variableKeys: string[]): string[] {
   return [...new Set([...variableKeys, ...BOARD_VARIABLES])];
-}
-
-function cachedCellCount(
-  data: CoreData,
-  variableKeys: string[],
-  windowId: WindowId,
-  season: Season,
-): number {
-  const keys = variableKeys.length ? variableKeys : ["T2M"];
-  const key = recordKey(windowId, season);
-  const cells = new Set<string>();
-  for (const city of data.cities) {
-    const records = data.trends.cities[city.id];
-    if (records && keys.some((variableKey) => records[variableKey]?.[key])) cells.add(city.cellId);
-  }
-  return cells.size;
 }
 
 function parseUrl(data: CoreData): ViewState {
@@ -314,10 +298,6 @@ export default function App() {
   }, [setView, view.fireOn]);
 
   const selectedCity = data ? cityById(data.cities, view.cityId) : null;
-  const cachedCells = useMemo(
-    () => (data ? cachedCellCount(data, view.variableKeys, view.windowId, view.season) : 0),
-    [data, variableSignature, view.windowId, view.season],
-  );
   const hero = !view.cityId;
   const showPanel = Boolean(view.cityId) || view.panelTab === "fire";
 
@@ -365,7 +345,6 @@ export default function App() {
         data={data}
         view={view}
         selectedCity={selectedCity}
-        cachedCells={cachedCells}
         fetchingCity={fetchingCity}
         onShare={share}
         onMethods={() => setMethodsOpen(true)}
@@ -418,7 +397,10 @@ export default function App() {
       {view.fireOn && !fireNoticeDismissed && view.panelTab !== "fire" && data.fires.clusters.length ? (
         <FireNotice
           data={data}
-          onView={() => setView({ panelTab: "fire" })}
+          onView={() => {
+            setFireNoticeDismissed(true);
+            setView({ panelTab: "fire" });
+          }}
           onDismiss={() => setFireNoticeDismissed(true)}
         />
       ) : null}
@@ -471,7 +453,6 @@ export default function App() {
         data={data}
         view={view}
         selectedCity={selectedCity}
-        cachedCells={cachedCells}
         fetchingCity={fetchingCity}
         onOpenFile={() => setView({ panelTab: "file" })}
         onOpenFire={() => setView({ panelTab: "fire" })}

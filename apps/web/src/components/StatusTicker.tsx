@@ -7,7 +7,6 @@ export function StatusTicker({
   data,
   view,
   selectedCity,
-  cachedCells,
   fetchingCity,
   onOpenFile,
   onOpenFire,
@@ -16,7 +15,6 @@ export function StatusTicker({
   data: CoreData;
   view: ViewState;
   selectedCity: City | null;
-  cachedCells: number;
   fetchingCity: boolean;
   onOpenFile: () => void;
   onOpenFire: () => void;
@@ -41,7 +39,7 @@ export function StatusTicker({
     });
   }
   items.push({ text: `${data.cities.length} CITIES · ${view.variableKeys.length} VARIABLES · ${windowDef.start}–${windowDef.end}` });
-  items.push({ text: `${cachedCells} CACHED CELLS · q ACROSS CACHED CELLS · GRAY = NOT CACHED — CLICK TO FETCH` });
+  items.push({ text: `CACHED CELLS · q ACROSS CACHED CELLS · GRAY = NOT CACHED — CLICK TO FETCH` });
   items.push({ text: `LENS: ${view.lens.toUpperCase()} · COMPUTED EVIDENCE` });
   if (fire) {
     items.push({
@@ -73,8 +71,6 @@ export function StatusTicker({
         <span>FIRMS</span>
         <span className="ticker-sep">|</span>
         <span>GIBS</span>
-        <span className="ticker-sep">|</span>
-        <span className="text-[var(--accent-dim)]">{cachedCells} CACHED CELLS</span>
       </span>
     </footer>
   );

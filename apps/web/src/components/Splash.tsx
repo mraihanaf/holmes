@@ -63,7 +63,7 @@ export function Splash({ ready, onDone }: { ready: boolean; onDone: () => void }
           </div>
           <div className="mt-3 flex items-center justify-between font-mono text-[9px] tracking-[0.08em] text-[var(--text-muted)]">
             <span>{stage.text}</span>
-            <span className="text-[var(--accent)]">{String(Math.round(progress)).padStart(3, "0")}%</span>
+            <span className="text-[var(--accent)]">{Math.round(progress)}%</span>
           </div>
           <div className="mt-8 font-mono text-[8px] leading-relaxed tracking-[0.18em] text-[var(--text-muted)]">
             NASA POWER · MERRA-2 · CERES · MODIS · FIRMS · GIBS

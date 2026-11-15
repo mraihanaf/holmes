@@ -345,7 +345,12 @@ export function RightPanel({
             {tab.label}
           </button>
         ))}
-        <button className="panel-tab !flex-none !px-1.5" onClick={() => onSetView({ cityId: null })} aria-label="Close panel">
+        <button
+          type="button"
+          className="panel-tab !flex-none !px-1.5"
+          onClick={() => onSetView({ cityId: null, panelTab: "file" })}
+          aria-label="Close panel"
+        >
           <X size={11} />
         </button>
       </div>
