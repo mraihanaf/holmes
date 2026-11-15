@@ -211,6 +211,7 @@ apps/stats-engine/
 | `GET` | `/healthz` | Liveness and method version |
 | `POST` | `/analyze` | One series |
 | `POST` | `/analyze/batch` | Up to 500 series; FDR across the batch |
+| `POST` | `/analyze/cell` | One series per variable; all window x season combinations for a lazy cell |
 
 ### Auth and limits
 
@@ -295,3 +296,49 @@ The UI must show these when relevant:
 - The service has no database and no external network calls.
 - Golden tests pass for the two research fixtures within tolerance.
 - The agent cannot publish a brief whose numbers fail the verification check.
+
+
+### `/analyze/cell` (lazy global board)
+
+One request carries the 10 POWER series for a MERRA-2 cell. The service
+returns every variable x window x season combination, which is 200 trend
+results. This is the endpoint the `stats:ensureCity` Convex action calls when
+a user inspects an uncached city.
+
+Request:
+
+```json
+{
+  "cell_id": "c167_458",
+  "series": [
+    {
+      "variable_key": "T2M",
+      "units": "°C",
+      "points": [{"ts": "1981-01-01T00:00:00Z", "value": 26.1}]
+    }
+  ],
+  "windows": [{"id": "25y", "start": 2001, "end": 2025}],
+  "seasons": ["all", "DJF", "MAM", "JJA", "SON"]
+}
+```
+
+Response:
+
+```json
+{
+  "method_version": "1.0.0",
+  "cell_id": "c167_458",
+  "results": [
+    {
+      "variable_key": "T2M",
+      "window": "25y",
+      "season": "all",
+      "result": {"status": "ok", "slope_per_decade": 0.23, "...": "..."}
+    }
+  ]
+}
+```
+
+Convex computes `qVar` across the 10 variables for each window/season and
+stores the compact board projection. Board q-values across cached cells are
+computed by `trends:cachedBoard` on read.
