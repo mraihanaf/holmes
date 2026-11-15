@@ -9,6 +9,7 @@ import {
   formatP,
   getRecord,
   mergeTrendRecord,
+  modeFor,
   rollingMean,
   uncachedRecord,
 } from "./trends";
@@ -87,6 +88,13 @@ describe("trend helpers", () => {
     expect(findCity(cities, "DKI Jakarta")?.id).toBe("jakarta");
     expect(findCity(cities, "carac")?.id).toBe("caracas");
     expect(findCity(cities, "nowhere")).toBeNull();
+  });
+
+  it("derives single or combined mode from the variable count", () => {
+    expect(modeFor(["T2M"])).toBe("single");
+    expect(modeFor([])).toBe("single");
+    expect(modeFor(["T2M", "PRECTOTCORR"])).toBe("combined");
+    expect(modeFor(["T2M", "PRECTOTCORR", "AOD_55"])).toBe("combined");
   });
 
   it("formats p-values without false precision", () => {

@@ -1,4 +1,5 @@
 export type Lens = "effect" | "evidence" | "agreement" | "coverage";
+export type ViewMode = "single" | "combined";
 export type Season = "all" | "DJF" | "MAM" | "JJA" | "SON";
 export type WindowId = "full" | "35y" | "25y" | "15y";
 export type PanelTab = "file" | "fire";
@@ -232,7 +233,6 @@ export interface CompositeResult {
 
 export interface ViewState {
   variableKeys: string[];
-  mode: "single" | "combined";
   lens: Lens;
   windowId: WindowId;
   season: Season;

@@ -11,6 +11,7 @@ import {
   formatP,
   formatQ,
   getRecord,
+  hasCityRecords,
   makeCityNotes,
   seriesPoints,
   signed,
@@ -266,9 +267,49 @@ function CityFileView({
   );
 }
 
+function CityFileLoading({ city }: { city: City }) {
+  return (
+    <div className="panel-scroll space-y-4" aria-busy="true" aria-live="polite">
+      <div className="fetch-status">
+        <span className="fetch-spinner" aria-hidden="true" />
+        <div>
+          <div className="font-mono text-[9px] tracking-[0.14em] text-[var(--amber)]">FETCHING MERRA-2 CELL</div>
+          <div className="mt-0.5 font-mono text-[8px] tracking-[0.08em] text-[var(--text-muted)]">
+            {city.cellId} · {city.lat.toFixed(2)}°, {city.lon.toFixed(2)}° · TREND + SERIES
+          </div>
+        </div>
+      </div>
+      <div className="fetch-track" aria-hidden="true"><span className="fetch-track__bar" /></div>
+      <div className="skeleton-card">
+        <div className="skeleton-line w-1/3" />
+        <div className="skeleton-line w-full" />
+        <div className="skeleton-line w-5/6" />
+      </div>
+      <div className="skeleton-card">
+        <div className="skeleton-line w-1/4" />
+        <div className="skeleton-line skeleton-line--hero w-2/3" />
+        <div className="skeleton-line w-1/2" />
+      </div>
+      <div className="skeleton-card">
+        {[0, 1, 2, 3].map((row) => (
+          <div className="skeleton-row" key={row}>
+            <span className="skeleton-dot" />
+            <span className="skeleton-line flex-1" />
+            <span className="skeleton-line w-10" />
+          </div>
+        ))}
+      </div>
+      <div className="font-mono text-[8px] leading-relaxed text-[var(--text-muted)]">
+        FIRST INSPECTION FETCHES THIS CELL ONCE · THE BOARD REUSES THE CACHE
+      </div>
+    </div>
+  );
+}
+
 export function RightPanel({
   data,
   view,
+  fetchingCity,
   onSetView,
   onShare,
   selectedCluster,
@@ -277,6 +318,7 @@ export function RightPanel({
 }: {
   data: CoreData;
   view: ViewState;
+  fetchingCity: boolean;
   onSetView: (patch: Partial<ViewState>) => void;
   onShare: () => void;
   selectedCluster: FireCluster | null;
@@ -284,6 +326,7 @@ export function RightPanel({
   onFlyCluster: (cluster: FireCluster) => void;
 }) {
   const city = cityById(data.cities, view.cityId);
+  const cityUncached = city ? !hasCityRecords(data.trends, city.id) : false;
   const tabs: { id: PanelTab; label: string }[] = [
     { id: "file", label: "CITY FILE" },
     { id: "fire", label: "FIRE WATCH" },
@@ -317,7 +360,11 @@ export function RightPanel({
                 </div>
               </div>
             </div>
-            <CityFileView data={data} view={view} city={city} onSetView={onSetView} onShare={onShare} />
+            {fetchingCity && cityUncached ? (
+              <CityFileLoading city={city} />
+            ) : (
+              <CityFileView data={data} view={view} city={city} onSetView={onSetView} onShare={onShare} />
+            )}
           </>
         ) : (
           <div className="panel-scroll flex flex-col items-center justify-center gap-3 py-16 text-center">

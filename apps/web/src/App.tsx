@@ -9,7 +9,7 @@ import {
 } from "@/lib/api";
 import { startFeatureTour } from "@/lib/tour";
 import type { CaseEntry, FireCluster, Lens, Season, ViewState, WindowId } from "@/lib/types";
-import { cityById, recordKey, windowById } from "@/lib/trends";
+import { cityById, hasCityRecords, recordKey, windowById } from "@/lib/trends";
 import { GlobeMap, type GlobeMapHandle } from "@/components/GlobeMap";
 import { Splash } from "@/components/Splash";
 import { Header } from "@/components/Header";
@@ -23,7 +23,6 @@ import { Shortcuts } from "@/components/Shortcuts";
 
 const DEFAULT_VIEW: ViewState = {
   variableKeys: ["T2M"],
-  mode: "single",
   lens: "effect",
   windowId: "25y",
   season: "all",
@@ -66,11 +65,6 @@ function cachedCellCount(
   return cells.size;
 }
 
-function hasCityRecords(data: CoreData, cityId: string): boolean {
-  const entry = data.trends.cities[cityId];
-  return Boolean(entry && Object.keys(entry).length);
-}
-
 function parseUrl(data: CoreData): ViewState {
   const params = new URLSearchParams(window.location.search);
   const next: ViewState = { ...DEFAULT_VIEW };
@@ -100,7 +94,6 @@ function parseUrl(data: CoreData): ViewState {
   next.night = params.get("night") === "1";
   next.labels = params.get("labels") !== "0";
   next.gridOn = params.get("grid") !== "0";
-  next.mode = params.get("mode") === "combined" && next.variableKeys.length > 1 ? "combined" : "single";
   if (next.cityId && !params.get("panel")) next.panelTab = "file";
   return next;
 }
@@ -116,7 +109,6 @@ function urlFor(view: ViewState, data: CoreData) {
   params.set("season", view.season);
   params.set("lens", view.lens);
   params.set("panel", view.panelTab);
-  params.set("mode", view.mode);
   if (!view.areasOn) params.set("areas", "0");
   if (view.fireOn) params.set("fire", "1");
   if (view.night) params.set("night", "1");
@@ -212,10 +204,10 @@ export default function App() {
         if (next) {
           setData((previous) => (previous ? mergeCoreData(previous, next) : next));
           setBoardRefreshToken((token) => token + 1);
-          if (!hasCityRecords(next, cityId)) {
+          if (!hasCityRecords(next.trends, cityId)) {
             showToast(next.backend.mode === "convex" ? "CITY CELL RETURNED NO TRENDS" : "CITY NOT CACHED — OFFLINE DEMO");
           }
-        } else if (!hasCityRecords(data, cityId)) {
+        } else if (!hasCityRecords(data.trends, cityId)) {
           showToast(data.backend.mode === "convex" ? "CITY DATA NOT AVAILABLE" : "CITY NOT CACHED — OFFLINE DEMO");
         }
       })
@@ -245,7 +237,6 @@ export default function App() {
   const setView = useCallback((patch: Partial<ViewState>) => {
     setViewState((previous) => {
       const next = { ...previous, ...patch };
-      if (patch.variableKeys && next.variableKeys.length < 2 && next.mode === "combined") next.mode = "single";
       if (patch.variableKeys && next.variableKeys.length < 2 && next.lens === "agreement") next.lens = "effect";
       return next;
     });
@@ -260,7 +251,6 @@ export default function App() {
       ...previous,
       cityId: entry.placeId,
       variableKeys: entry.variableKeys,
-      mode: entry.variableKeys.length > 1 ? "combined" : "single",
       windowId: entry.windowId,
       season: entry.season,
       panelTab: "file",
@@ -390,6 +380,7 @@ export default function App() {
         <RightPanel
           data={data}
           view={view}
+          fetchingCity={fetchingCity}
           onSetView={setView}
           onShare={share}
           selectedCluster={selectedCluster}

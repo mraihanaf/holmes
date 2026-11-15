@@ -3,7 +3,7 @@ import { Check, SlidersHorizontal, Layers, Flame, MapPin, Moon, LayoutGrid, Tag 
 import type { CoreData } from "@/lib/api";
 import type { City, Lens, Season, ViewState, WindowId } from "@/lib/types";
 import { Legend } from "./Legend";
-import { digitsFor, getRecord, signed, windowById } from "@/lib/trends";
+import { digitsFor, getRecord, modeFor, signed, windowById } from "@/lib/trends";
 
 const THEME_ORDER = ["HEAT", "WATER", "AIR", "ENERGY"] as const;
 const LENSES: { id: Lens; label: string }[] = [
@@ -63,6 +63,7 @@ export function VariableRail({
 }) {
   const window = windowById(data.trends, view.windowId);
   const primaryKey = view.variableKeys[0] ?? "T2M";
+  const mode = modeFor(view.variableKeys);
   const aodSelected = view.variableKeys.includes("AOD_55");
 
   const toggleVariable = (key: string) => {
@@ -71,7 +72,6 @@ export function VariableRail({
     if (!next.length) next = ["T2M"];
     if (next.length > 8) next = next.slice(0, 8);
     const patch: Partial<ViewState> = { variableKeys: next };
-    if (next.length < 2 && view.mode === "combined") patch.mode = "single";
     if (next.length < 2 && view.lens === "agreement") patch.lens = "effect";
     if (key === "AOD_55" && !selected && view.windowId === "full") patch.windowId = "25y";
     onSetView(patch);
@@ -97,20 +97,14 @@ export function VariableRail({
         <section className="rail-section">
           <div className="rail-heading">
             <div className="hud-label">MODE</div>
-            <div className="font-mono text-[8px] text-[var(--text-muted)]">{view.mode.toUpperCase()}</div>
+            <div className="font-mono text-[8px] text-[var(--accent)]">AUTO</div>
           </div>
-          <div className="seg">
-            <button className={`seg-btn ${view.mode === "single" ? "seg-btn--on" : ""}`} onClick={() => onSetView({ mode: "single" })}>
-              SINGLE
-            </button>
-            <button
-              className={`seg-btn ${view.mode === "combined" ? "seg-btn--on" : ""}`}
-              onClick={() => onSetView({ mode: "combined" })}
-              disabled={view.variableKeys.length < 2}
-              title={view.variableKeys.length < 2 ? "Select two or more variables to combine" : "Standardized composite"}
-            >
-              COMBINED
-            </button>
+          <div className="seg" role="status" aria-label={`Mode: ${mode}`}>
+            <span className={`seg-btn seg-btn--readout ${mode === "single" ? "seg-btn--on" : ""}`}>SINGLE</span>
+            <span className={`seg-btn seg-btn--readout ${mode === "combined" ? "seg-btn--on" : ""}`}>COMBINED</span>
+          </div>
+          <div className="font-mono text-[8px] text-[var(--text-muted)]">
+            {mode === "combined" ? `${view.variableKeys.length} VARIABLES → COMPOSITE` : "1 VARIABLE → SINGLE SIGNAL"}
           </div>
         </section>
 
@@ -188,7 +182,7 @@ export function VariableRail({
               </button>
               <button
                 className="font-mono text-[8px] uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--accent)]"
-                onClick={() => onSetView({ variableKeys: ["T2M"], mode: "single" })}
+                onClick={() => onSetView({ variableKeys: ["T2M"] })}
               >
                 CLEAR
               </button>

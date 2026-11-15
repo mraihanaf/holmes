@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Share2, BookOpen, CircleHelp } from "lucide-react";
 import type { CoreData } from "@/lib/api";
 import type { City, ViewState } from "@/lib/types";
-import { SEASON_LABEL, windowById } from "@/lib/trends";
+import { SEASON_LABEL, modeFor, windowById } from "@/lib/trends";
 
 export function Header({
   data,
@@ -32,6 +32,7 @@ export function Header({
   const primary = view.variableKeys[0] ?? "T2M";
   const variable = data.variables.find((item) => item.key === primary);
   const utc = clock.toISOString().slice(11, 19);
+  const mode = modeFor(view.variableKeys);
 
   return (
     <header className="header">
@@ -48,7 +49,7 @@ export function Header({
         <span className="text-[rgba(77,149,216,0.28)]">//</span>
         <b>{SEASON_LABEL[view.season]}</b>
         <span className="text-[rgba(77,149,216,0.28)]">//</span>
-        <b>{view.mode === "combined" ? "COMBINED" : "SINGLE"}</b>
+        <b>{mode === "combined" ? "COMBINED" : "SINGLE"}</b>
       </div>
       <div className="status-chips">
         <span className={`tag ${data.backend.mode === "convex" ? "tag--info" : "tag--muted"}`}>
@@ -61,7 +62,11 @@ export function Header({
         <span className="tag tag--info" title="Cached cells color the map. Gray cities are not cached yet.">
           CACHED CELLS: {cachedCells}
         </span>
-        {fetchingCity ? <span className="tag tag--warn">FETCHING CITY DATA</span> : null}
+        {fetchingCity ? (
+          <span className="tag tag--warn">
+            <span className="live-dot" /> FETCHING CITY DATA
+          </span>
+        ) : null}
         {data.fires.clusters.length ? (
           <span className="tag tag--fire">FIRMS: {data.fires.snapshot.end.slice(5)}</span>
         ) : null}

@@ -1,6 +1,6 @@
 import type { CoreData } from "@/lib/api";
 import type { ViewState } from "@/lib/types";
-import { compositeForCity, digitsFor, getRecord, percentile, slopeUnit } from "@/lib/trends";
+import { compositeForCity, digitsFor, getRecord, modeFor, percentile, slopeUnit } from "@/lib/trends";
 
 function CityAreaNote() {
   return (
@@ -14,7 +14,7 @@ export function Legend({ data, view }: { data: CoreData; view: ViewState }) {
   const primary = view.variableKeys[0] ?? "T2M";
   const variable = data.variables.find((item) => item.key === primary);
   const digits = digitsFor(variable);
-  const combined = view.mode === "combined" && view.variableKeys.length > 1;
+  const combined = modeFor(view.variableKeys) === "combined";
 
   let domain = 1;
   if (view.lens === "effect") {

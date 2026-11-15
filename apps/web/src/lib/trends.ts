@@ -10,6 +10,7 @@ import type {
   SeriesPoint,
   TrendRecord,
   Variable,
+  ViewMode,
   WindowDef,
   WindowId,
 } from "./types";
@@ -28,6 +29,17 @@ export function windowById(trends: CityTrends, id: WindowId): WindowDef {
 
 export function recordKey(windowId: WindowId, season: Season) {
   return `${windowId}|${season}`;
+}
+
+/** The lens shows one variable alone, or a composite when several are selected. */
+export function modeFor(variableKeys: string[]): ViewMode {
+  return variableKeys.length > 1 ? "combined" : "single";
+}
+
+export function hasCityRecords(trends: CityTrends, cityId: string | null | undefined): boolean {
+  if (!cityId) return false;
+  const entry = trends.cities[cityId];
+  return Boolean(entry && Object.keys(entry).length);
 }
 
 export function getRecord(

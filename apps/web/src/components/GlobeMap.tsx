@@ -21,6 +21,7 @@ import {
   compositeForCity,
   divergenceColor,
   getRecord,
+  modeFor,
   percentile,
   sequentialColor,
 } from "@/lib/trends";
@@ -102,7 +103,7 @@ function solarTerminatorPolygon(now = new Date()) {
 function domainFor(data: CoreData, view: ViewState): number {
   const values: number[] = [];
   for (const city of data.cities) {
-    if (view.mode === "combined" && view.variableKeys.length > 1) {
+    if (modeFor(view.variableKeys) === "combined") {
       const composite = compositeForCity(data.trends, city.id, view.variableKeys, view.windowId, view.season);
       if (composite.z !== null) values.push(Math.abs(composite.z));
     } else {
@@ -191,7 +192,7 @@ function styleForCity(
   const selected = city.id === selectedCityId;
   const record = getRecord(data.trends, city.id, view.variableKeys[0] ?? "T2M", view.windowId, view.season);
   const composite =
-    view.mode === "combined" && view.variableKeys.length > 1
+    modeFor(view.variableKeys) === "combined"
       ? compositeForCity(data.trends, city.id, view.variableKeys, view.windowId, view.season)
       : null;
   const uncached = !data.trends.cities[city.id];

@@ -75,7 +75,7 @@ export function startFeatureTour(cityCount: number) {
   add(
     "#tour-variables",
     "Variables",
-    "Pick one variable for a single trend, or two or more and switch MODE to COMBINED for a standardized composite. AOD starts in 2001, so the window adjusts automatically.",
+    "Pick one variable for a single trend. Select two or more and the lens switches to a standardized composite automatically. AOD starts in 2001, so the window adjusts automatically.",
   );
   add(
     "#tour-layers",
