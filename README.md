@@ -1,12 +1,7 @@
-# HOLMES — Earth System Detective
-
+# HOLMES
 Holmes turns a searchable global city board into a reproducible NASA data investigation: a globe of city trends, a sourced evidence file, and a statistical verdict.
 
 Built for the **NASA Space Apps Challenge 2026 — Be an Earth System Trend Detective!** (Jakarta).
-
-![Holmes — hero](docs/screenshots/hero-1440.png)
-
-See [`docs/verification.md`](docs/verification.md) for the Playwright verification log and more screenshots.
 
 ## What is in this repo
 
@@ -50,44 +45,9 @@ npx convex env set STATS_SHARED_SECRET <same-secret>
 
 The SPA reads `VITE_CONVEX_URL` from `.env.local` (or the build environment).
 
-## Architecture: global board, lazy cell cache
 
-The old demo precomputed every trend for 121 cities and shipped an 8 MB JSON file. The global board cannot do that: 7,349 cities × 10 variables × 4 windows × 5 seasons is too much to download. Instead:
 
-1. **Cities are static.** `apps/web/public/data/cities.json` carries every populated place plus its MERRA-2 `cellId`.
-2. **The map is a cache view.** `trends:cachedBoard` returns compact rows for cells already in Convex. The SPA paints those cells and leaves the rest gray.
-3. **A city inspection fills the cache.** `stats:ensureCity` checks the cell, fetches one NASA POWER monthly series (10 parameters, 1981–2025) if missing, calls the Python `/analyze/cell` endpoint for all 200 trend combinations, and writes the full records plus a compact `cellBoards` projection.
-4. **The grid shows the data support.** Cached cell borders are drawn faintly; selecting a city draws a local 9 × 9 MERRA-2 mesh and highlights the selected cell border.
-5. **q-values are local to the cache.** For a variable/window/season, Benjamini–Hochberg is applied across the cells currently cached, not a completed global scan. The UI says so.
-6. **One POWER series serves a cell.** Every city in a 0.5° × 0.625° MERRA-2 cell shares the same reanalysis series, so the cache key is the cell.
-
-This keeps the first load small (cities + metadata, no 8 MB monolith), makes every city inspectable, and avoids prefetching the planet.
-
-## Project layout
-
-```text
-apps/web/                Vite + React 19 + TypeScript + Tailwind 4 SPA
-  src/components/        GlobeMap, Header, VariableRail, RightPanel, CitySearch, …
-  src/lib/               types, lazy Convex loader, trend helpers
-  public/data/           cities, meta, fires, GIBS metadata, countries, curated fallback
-apps/stats-engine/       FastAPI + NumPy/SciPy/statsmodels/pymannkendall
-convex/                  schema, catalog, trends, stats action, cells, cases, fires
-data/seed/global/        generated 7,349-city list and 6,561-cell list
-scripts/                 build_global_cities.py, build_seed_cells.py, seed_convex.sh
-docs/                    concept + technical + problem dossier
-```
-
-## Data pipeline
-
-1. **Build the city list.** `pnpm cities:build` downloads nothing; it reads the Natural Earth 10m populated-places shapefile under `data/seed/raw/ne/` and writes `data/seed/global/cities.json` plus `cells.json`. Curated demo IDs (`jakarta`, `surabaya`, …) are preserved.
-2. **Build the curated seed.** `pnpm seed:cells:build` converts the existing 121-city precomputed trends into `convex/data/seed-cells.jsonl` and `seed-cell-boards.jsonl`.
-3. **Seed Convex.** `bash scripts/seed_convex.sh` imports cities, variables, the curated cells, cases, and fires, then refreshes the health counters.
-4. **Inspect any city.** The `stats:ensureCity` action does the rest at runtime. The Python stats engine is the only place that computes trends.
-5. **Refresh the fire snapshot.** `pnpm fires:build` downloads the public FIRMS global 7-day CSV and writes `fires.json` plus the Convex import row.
-
-The curated 121-city prewarm scripts (`scripts/prewarm.py`, `scripts/fetch_power.py`) remain for the offline fallback and the starter cases.
-
-## What is real and what is cached
+## Data Sources
 
 - **NASA POWER / MERRA-2** monthly values are fetched live for an uncached cell and cached in Convex. Source: NASA POWER monthly point API.
 - **AOD_55** is CERES SYN1deg, not MODIS. The UI labels it correctly.
@@ -114,22 +74,7 @@ python scripts/verify_webapp.py --url http://localhost:5173 --screenshots
 
 The current build was verified with Playwright: all 7,349 cities list, 128 cached cells render, starter cases open, an uncached city (Ushuaia) fetches and caches live, and the console is clean.
 
-## Convex functions
 
-| Function | Purpose |
-|---|---|
-| `catalog.listVariables`, `catalog.getVariable` | Variable catalog |
-| `catalog.listCities`, `catalog.getCity`, `catalog.searchCities`, `catalog.countCities` | City anchors and search |
-| `trends.cachedBoard` | Compact board rows for cached cells, q across the cached set |
-| `trends.cell`, `trends.cellForCity` | Full cached cell records |
-| `trends.series` | One cached monthly series |
-| `stats.ensureCity` | Lazy POWER fetch + `/analyze/cell` + cache write |
-| `stats.runAnalysis` | One-series live analysis, cached in `analyses` |
-| `stats.checkStats` | Python service health |
-| `cases.list`, `cases.get` | Starter cases |
-| `fires.latest` | Global FIRMS 7-day snapshot, heat points, and clusters |
-| `system.health` | Counts and method/version health |
-| `seed.*` | Import helpers, board projection, counters |
 
 ## Limitations
 
@@ -150,9 +95,8 @@ NASA POWER / MERRA-2 / CERES SYN1deg · NASA FIRMS NRT · NASA GIBS / MODIS Terr
 
 No NASA logo or endorsement is implied. Holmes is an independent hackathon project.
 
-## AI integrations installed
+## SI Usage
 
-- Convex agent skills: `npx skills add convex/agent-skills --all -g` (also installed in `holmes/.agents/`)
-- Anthropic webapp-testing skill: `npx skills add https://github.com/anthropics/skills --skill webapp-testing -g`
-
-The application itself does **not** require an LLM key or an agent runtime.
+- Convex agent skills
+- Anthropic webapp-testing skill
+- Prime Agent: A self improving RLM Harness
