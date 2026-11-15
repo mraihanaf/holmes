@@ -89,7 +89,7 @@ docs/                    concept + technical + problem dossier
 2. **Build the curated seed.** `pnpm seed:cells:build` converts the existing 121-city precomputed trends into `convex/data/seed-cells.jsonl` and `seed-cell-boards.jsonl`.
 3. **Seed Convex.** `bash scripts/seed_convex.sh` imports cities, variables, the curated cells, cases, and fires, then refreshes the health counters.
 4. **Inspect any city.** The `stats:ensureCity` action does the rest at runtime. The Python stats engine is the only place that computes trends.
-5. **Refresh the fire snapshot.** `uv run --project apps/stats-engine --with shapely python scripts/build_global_fires.py` downloads the public FIRMS global 7-day CSV and writes `fires.json` plus the Convex import row.
+5. **Refresh the fire snapshot.** `pnpm fires:build` downloads the public FIRMS global 7-day CSV and writes `fires.json` plus the Convex import row.
 
 The curated 121-city prewarm scripts (`scripts/prewarm.py`, `scripts/fetch_power.py`) remain for the offline fallback and the starter cases.
 
